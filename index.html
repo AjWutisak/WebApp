@@ -133,16 +133,31 @@
         <div class="relative max-w-4xl w-full flex flex-col items-center" onclick="event.stopPropagation()">
             <button class="absolute -top-12 right-0 text-white hover:text-gray-300 text-4xl font-bold drop-shadow-md" onclick="closeImageModal()">&times;</button>
             
-            <div class="w-full flex justify-center items-center min-h-[200px] bg-white/5 rounded-xl p-2">
-                <img id="modalImageObj" src="" class="max-h-[75vh] w-auto object-contain rounded-xl shadow-2xl" 
-                     onerror="this.onerror=null; this.src='https://placehold.co/600x400/eeeeee/a8a8a8?text=รูปภาพโหลดไม่สำเร็จ'; document.getElementById('modalImageLink').classList.remove('hidden');">
+            <div class="w-full flex justify-center items-center min-h-[200px] bg-white/5 rounded-xl p-2 relative overflow-hidden">
+                <!-- ตัวสปินเนอร์ตอนกำลังโหลดภาพ -->
+                <div id="modalImageLoader" class="absolute inset-0 flex flex-col items-center justify-center text-white/50">
+                    <i class="ph ph-spinner animate-spin text-4xl mb-2"></i>
+                    <span class="text-sm">กำลังโหลดรูปภาพ...</span>
+                </div>
+                
+                <!-- รูปภาพจริง -->
+                <img id="modalImageObj" src="" class="max-h-[75vh] w-auto object-contain rounded-xl shadow-2xl relative z-10 hidden" 
+                     onload="document.getElementById('modalImageLoader').classList.add('hidden'); this.classList.remove('hidden');"
+                     onerror="document.getElementById('modalImageLoader').classList.add('hidden'); this.classList.add('hidden'); document.getElementById('imageErrorState').classList.remove('hidden'); document.getElementById('modalImageLink').classList.remove('hidden');">
+                     
+                <!-- หน้าจอแจ้ง Error กรณีโหลดรูปจาก Drive ไม่ได้ -->
+                <div id="imageErrorState" class="hidden relative z-10 flex flex-col items-center justify-center text-gray-400 p-8 text-center bg-gray-800 rounded-xl w-full max-w-md border border-gray-700">
+                    <i class="ph ph-image-broken text-6xl mb-3 text-gray-500"></i>
+                    <p class="font-bold text-gray-300">โหลดรูปภาพมาแสดงบนเว็บไม่ได้</p>
+                    <p class="text-xs mt-2 text-gray-400">โฟลเดอร์รูปใน Google Drive อาจจะยังถูกล็อกเป็น "ส่วนตัว"<br>โปรดลองคลิกปุ่มสีน้ำเงินด้านล่างเพื่อเปิดรูปด้วยตัวคุณเอง</p>
+                </div>
             </div>
             
             <p id="modalImageTitle" class="text-white mt-4 text-lg md:text-xl font-bold text-center drop-shadow-md"></p>
             
             <!-- ลิงก์ปุ่มสำรอง เปิดแยกแท็บทันที -->
-            <a id="modalImageLink" href="#" target="_blank" class="hidden mt-4 bg-blue-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition flex items-center gap-2">
-                <i class="ph ph-arrow-square-out text-xl"></i> คลิกเพื่อเปิดรูปต้นฉบับ
+            <a id="modalImageLink" href="#" target="_blank" class="hidden mt-4 bg-blue-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition flex items-center gap-2 border border-blue-500">
+                <i class="ph ph-arrow-square-out text-xl"></i> คลิกเพื่อเปิดดูรูปตัวเต็ม
             </a>
         </div>
     </div>
@@ -386,7 +401,7 @@
 
             visitedStudents.forEach(s => {
                 if(planStudentIds.has(s.id)) return; 
-                L.marker([s.lat, s.lng], { icon: L.divIcon({ className: 'custom-div-icon', html: `<div class="w-7 h-7 bg-emerald-500 rounded-full flex items-center justify-center text-white shadow-md border-2 border-white opacity-80"><i class="ph ph-check font-bold text-xs"></i></div>`, iconSize: [28, 28]}) }).addTo(mapLayerGroup).bindPopup(`<b>${s.fName}</b>`);
+                L.marker([s.lat, s.lng], { icon: L.divIcon({ className: 'custom-div-icon', html: `<div class="w-7 h-7 bg-emerald-500 rounded-full flex items-center justify-center text-white shadow-md border-2 border-white opacity-80"><i class="ph ph-check font-bold text-xs"></i></div>`, iconSize: [28, 28]}) }).addTo(mapLayerGroup).bindPopup(`<b>${s.fName}</b><br><a href="tel:${s.phone}" class="text-blue-600 text-xs"><i class="ph-fill ph-phone-call"></i> ${s.phone}</a>`);
                 bounds.push([s.lat, s.lng]);
             });
 
@@ -396,7 +411,7 @@
                 dayRoute.forEach((s, index) => {
                     latlngs.push([s.lat, s.lng]); bounds.push([s.lat, s.lng]);
                     const pinBg = s.isVisited ? 'bg-emerald-500' : colorObj.bg;
-                    L.marker([s.lat, s.lng], { icon: L.divIcon({ className: 'custom-div-icon', html: `<div class="w-9 h-9 ${pinBg} rounded-full flex items-center justify-center text-white font-bold shadow-md border-[2px] border-white text-sm">${index + 1}</div>`, iconSize: [36, 36]}) }).addTo(mapLayerGroup).bindPopup(s.fName);
+                    L.marker([s.lat, s.lng], { icon: L.divIcon({ className: 'custom-div-icon', html: `<div class="w-9 h-9 ${pinBg} rounded-full flex items-center justify-center text-white font-bold shadow-md border-[2px] border-white text-sm">${index + 1}</div>`, iconSize: [36, 36]}) }).addTo(mapLayerGroup).bindPopup(`<b>${s.fName}</b><br><a href="tel:${s.phone}" class="text-blue-600 text-xs"><i class="ph-fill ph-phone-call"></i> ${s.phone}</a>`);
                 });
                 L.polyline(latlngs, { color: colorObj.hex, weight: 3, opacity: 0.8, dashArray: '5, 5' }).addTo(mapLayerGroup);
             });
@@ -423,11 +438,13 @@
                         ? `<button onclick="toggleVisit('${s.id}', this)" class="flex-1 bg-orange-50 text-orange-600 border border-orange-200 font-bold py-2 rounded-lg text-xs md:text-sm transition flex justify-center items-center gap-1"><i class="ph ph-arrow-u-up-left"></i> ยกเลิก</button>`
                         : `<button onclick="toggleVisit('${s.id}', this)" class="flex-1 bg-emerald-50 text-emerald-600 border border-emerald-200 font-bold py-2 rounded-lg text-xs md:text-sm transition flex justify-center items-center gap-1"><i class="ph ph-check"></i> ติ๊กเยี่ยม</button>`;
                     
-                    // --- บังคับให้ปุ่มแสดงขึ้นมาเสมอ ---
-                    let photoBtns = `
-                        <button onclick="openImageModalByStudent('${s.id}', 'student')" class="mt-2 text-[10px] md:text-xs bg-indigo-50 text-indigo-600 border border-indigo-100 px-2 py-1 rounded-md font-medium flex items-center gap-1 hover:bg-indigo-100 transition"><i class="ph ph-user-portrait"></i> รูปนักเรียน</button>
-                        <button onclick="openImageModalByStudent('${s.id}', 'house')" class="mt-2 text-[10px] md:text-xs bg-purple-50 text-purple-600 border border-purple-100 px-2 py-1 rounded-md font-medium flex items-center gap-1 hover:bg-purple-100 transition"><i class="ph ph-house"></i> รูปบ้าน</button>
-                    `;
+                    let photoBtns = '';
+                    if (s.studentPic) {
+                        photoBtns += `<button onclick="openImageModalByStudent('${s.id}', 'student')" class="mt-2 text-[10px] md:text-xs bg-indigo-50 text-indigo-600 border border-indigo-100 px-2 py-1 rounded-md font-medium flex items-center gap-1 hover:bg-indigo-100 transition shadow-sm"><i class="ph ph-user-portrait"></i> นักเรียน</button>`;
+                    }
+                    if (s.housePic) {
+                        photoBtns += `<button onclick="openImageModalByStudent('${s.id}', 'house')" class="mt-2 text-[10px] md:text-xs bg-purple-50 text-purple-600 border border-purple-100 px-2 py-1 rounded-md font-medium flex items-center gap-1 hover:bg-purple-100 transition shadow-sm"><i class="ph ph-house"></i> บ้าน</button>`;
+                    }
 
                     html += `
                         <div class="p-3 md:p-4 ${s.isVisited ? 'bg-emerald-50/40 opacity-80' : ''}">
@@ -435,15 +452,16 @@
                                 <div class="w-8 h-8 rounded-full ${s.isVisited ? 'bg-emerald-500' : colorObj.bg} text-white flex items-center justify-center font-bold text-sm shrink-0 mt-1">${index + 1}</div>
                                 <div class="flex-1 min-w-0 pr-6">
                                     <p class="font-bold text-slate-800 text-sm md:text-base">${s.fName}</p>
-                                    <p class="text-xs text-slate-500 mt-1">${s.address.full}</p>
+                                    <p class="text-[10px] md:text-xs mt-0.5"><a href="tel:${s.phone}" class="text-blue-600 hover:underline"><i class="ph-fill ph-phone-call"></i> ${s.phone}</a></p>
+                                    <p class="text-xs text-slate-500 mt-0.5">${s.address.full}</p>
                                     <div class="flex flex-wrap items-center gap-2 mt-2">
-                                        <button onclick="openNearbyModal('${s.id}')" class="mt-2 text-[10px] md:text-xs bg-blue-50 text-blue-600 border border-blue-100 px-2 py-1 rounded-md font-medium flex items-center gap-1 hover:bg-blue-100 transition"><i class="ph ph-magnifying-glass-plus"></i> เพื่อนบ้าน</button>
+                                        <button onclick="openNearbyModal('${s.id}')" class="mt-2 text-[10px] md:text-xs bg-blue-50 text-blue-600 border border-blue-100 px-2 py-1 rounded-md font-medium flex items-center gap-1 hover:bg-blue-100 transition shadow-sm"><i class="ph ph-magnifying-glass-plus"></i> เพื่อนบ้าน</button>
                                         ${photoBtns}
                                     </div>
                                 </div>
                             </div>
                             <div class="flex gap-2 ml-11">
-                                <a href="https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}" target="_blank" class="flex-1 text-center bg-white text-slate-700 font-bold py-2 rounded-lg text-xs md:text-sm border border-slate-300">นำทาง 1 หลัง</a>
+                                <a href="https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}" target="_blank" class="flex-1 text-center bg-white text-slate-700 font-bold py-2 rounded-lg text-xs md:text-sm border border-slate-300 shadow-sm">นำทาง 1 หลัง</a>
                                 ${btnHtml}
                             </div>
                         </div>`;
@@ -457,7 +475,10 @@
                 pastVisited.forEach(s => {
                     visitedHtml += `
                         <div class="bg-white border border-emerald-200 p-3 rounded-xl flex justify-between items-center shadow-sm">
-                            <div class="truncate pr-2"><p class="font-bold text-sm text-slate-700 truncate">${s.fName}</p></div>
+                            <div class="truncate pr-2">
+                                <p class="font-bold text-sm text-slate-700 truncate">${s.fName}</p>
+                                <p class="text-[10px]"><a href="tel:${s.phone}" class="text-blue-600 hover:underline"><i class="ph-fill ph-phone-call"></i> ${s.phone}</a></p>
+                            </div>
                             <button onclick="toggleVisit('${s.id}', this)" class="bg-orange-50 text-orange-600 border border-orange-200 text-xs px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 shrink-0"><i class="ph ph-arrow-u-up-left"></i> ยกเลิก</button>
                         </div>`;
                 });
@@ -466,15 +487,23 @@
             }
         }
 
-        // --- ระบบดึงรูปรองรับ Drive URL & Base64 ---
+        // --- ระบบดึงรูปรองรับ Drive URL & เทคนิค Thumbnail ป้องกันเว็บโดนบล็อก ---
         function getDriveDirectUrl(url) {
             if (!url) return '';
             if (url.startsWith('data:image')) return url; 
             
+            let fileId = '';
             const match = url.match(/file\/d\/([a-zA-Z0-9_-]+)/);
-            if (match && match[1]) return `https://drive.google.com/uc?id=${match[1]}`;
-            const idMatch = url.match(/id=([a-zA-Z0-9_-]+)/);
-            if (idMatch && idMatch[1]) return `https://drive.google.com/uc?id=${idMatch[1]}`;
+            if (match && match[1]) fileId = match[1];
+            else {
+                const idMatch = url.match(/id=([a-zA-Z0-9_-]+)/);
+                if (idMatch && idMatch[1]) fileId = idMatch[1];
+            }
+
+            if (fileId) {
+                // ใช้เทคนิคดึงภาพ Thumbnail ช่วยลดปัญหาโดนบล็อก CORS จาก Google Drive
+                return `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`;
+            }
             return url;
         }
 
@@ -484,22 +513,28 @@
             if(!student) return;
 
             const imgData = type === 'student' ? student.studentPic : student.housePic;
-            const title = (type === 'student' ? 'รูปนักเรียน: ' : 'รูปบ้าน: ') + student.fName;
+            const title = (type === 'student' ? 'รูปนักเรียน: ' : 'รูปหน้าบ้าน: ') + student.fName;
 
-            // ตรวจสอบว่ามีข้อมูลรูปภาพมาจริงๆ หรือไม่
             if (!imgData || imgData.trim() === '') {
-                alert("❌ ไม่มีรูปภาพนี้ในฐานข้อมูลครับ (ช่องใน Google Sheet ว่างเปล่า)");
+                showToast("ไม่มีข้อมูลรูปภาพในฐานข้อมูล", false);
                 return;
             }
 
             const directUrl = getDriveDirectUrl(imgData);
             const imgObj = document.getElementById('modalImageObj');
             const imgLink = document.getElementById('modalImageLink');
+            const loader = document.getElementById('modalImageLoader');
+            const errState = document.getElementById('imageErrorState');
             
-            // รีเซ็ตการแสดงผล
+            // รีเซ็ตสถานะหน้าต่าง Modal
+            imgObj.classList.add('hidden');
+            errState.classList.add('hidden');
+            loader.classList.remove('hidden');
+            
             imgObj.src = directUrl;
             
-            if(directUrl.startsWith('http')) {
+            // สร้างลิงก์สำรอง กรณีเปิดรูปตัวอย่างไม่สำเร็จ
+            if(imgData.startsWith('http')) {
                 imgLink.href = imgData; 
                 imgLink.classList.remove('hidden');
             } else {
@@ -574,6 +609,7 @@
                             <div class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0">${i+1}</div>
                             <div class="min-w-0 flex-1">
                                 <p class="font-bold text-sm text-slate-800 truncate">${s.fName} ${statusText}</p>
+                                <p class="text-[10px]"><a href="tel:${s.phone}" class="text-blue-600 hover:underline"><i class="ph-fill ph-phone-call"></i> ${s.phone}</a></p>
                                 <p class="text-xs text-slate-500 truncate">${s.address.subdistrict}</p>
                             </div>
                             <div class="bg-amber-50 border border-amber-100 text-amber-700 font-bold px-2 py-1 rounded text-xs shrink-0">~${s.tempDist.toFixed(1)} กม.</div>
