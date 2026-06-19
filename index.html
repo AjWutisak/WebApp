@@ -172,7 +172,6 @@
         // --- ระบบ Storage ---
         function loadStoredData() {
             try {
-                // บน GitHub Pages, localStorage จะทำงานได้ดีเยี่ยม
                 addressCache = JSON.parse(localStorage.getItem('addressCacheM52')) || {}; 
             } catch (error) {
                 addressCache = {};
@@ -207,7 +206,6 @@
                 clearTimeout(timeoutId);
                 delete window[cbName];
                 
-                // ตรวจสอบข้อมูลอิงตามรูปแบบ Code.gs ตัวใหม่ของอาจารย์
                 if (data && data.success) {
                     processData(data.data);
                 } else {
@@ -226,14 +224,12 @@
 
         function processData(records) {
             allStudents = [];
-            // วนลูปอ่านข้อมูล Object ที่ได้จาก Code.gs
             for (let i = 0; i < records.length; i++) {
                 const rec = records[i];
                 
-                // นำข้อมูลจาก Object มาเก็บในตัวแปร โดยใช้ rec.xxx ตามที่กำหนดใน Code.gs
-                const studentId = String(rec.rowIndex); // ใช้ rowIndex เป็น ID หลัก
+                const studentId = String(rec.rowIndex); 
                 const stdNo = rec.id || '-';
-                const fName = rec.name || ''; // fname + lname ถูกรวมมาแล้วใน Code.gs
+                const fName = rec.name || ''; 
                 const phone = rec.phone || '-';
                 const lat = parseFloat(rec.lat);
                 const lng = parseFloat(rec.lng);
@@ -259,7 +255,7 @@
             updateStats(); buildFilterOptions(); generatePlan(); startBackgroundGeocoding();
         }
 
-        // บันทึกสถานะเยี่ยมบ้าน ลง Sheet โดยตรง
+        // บันทึกสถานะเยี่ยมบ้าน ลง Sheet
         function toggleVisit(studentId, btnElement) {
             let student = allStudents.find(s => String(s.id) === String(studentId));
             if(!student) return;
@@ -287,10 +283,9 @@
             window[cbName] = function(data) {
                 clearTimeout(timeoutId);
                 delete window[cbName];
-                // เช็คสถานะการเซฟอิงตาม Code.gs ใหม่ (data.success)
                 if(data && data.success) {
                     updateStats();
-                    refreshUI(); // <--- รีเฟรชแค่ UI โดยไม่จัดเส้นทางใหม่
+                    refreshUI();
                     showToast(newStatus ? "บันทึกลง Sheet เรียบร้อย" : "ยกเลิกแล้ว", newStatus);
                 } else {
                     revert();
@@ -299,7 +294,6 @@
             };
 
             const script = document.createElement('script');
-            // ส่ง parameter &row=... และ &visited=... ตาม Code.gs ใหม่ของอาจารย์
             script.src = `${API_URL}?action=update&row=${encodeURIComponent(student.rowIndex)}&visited=${newStatus}&callback=${cbName}&t=${Date.now()}`;
             script.onerror = () => {
                 clearTimeout(timeoutId);
@@ -448,13 +442,13 @@
                         ? `<button onclick="toggleVisit('${s.id}', this)" class="flex-1 bg-orange-50 text-orange-600 border border-orange-200 font-bold py-2 rounded-lg text-xs md:text-sm transition flex justify-center items-center gap-1"><i class="ph ph-arrow-u-up-left"></i> ยกเลิก</button>`
                         : `<button onclick="toggleVisit('${s.id}', this)" class="flex-1 bg-emerald-50 text-emerald-600 border border-emerald-200 font-bold py-2 rounded-lg text-xs md:text-sm transition flex justify-center items-center gap-1"><i class="ph ph-check"></i> ติ๊กเยี่ยม</button>`;
                     
-                    // ปุ่มดูรูปภาพ 
+                    // --- แก้ไข: ใช้ id อ้างอิงแทนการแทรก Base64 ลงไปใน tag ---
                     let photoBtns = '';
                     if (s.studentPic) {
-                        photoBtns += `<button onclick="openImageModal('${s.studentPic}', 'รูปนักเรียน: ${s.fName}')" class="mt-2 text-[10px] md:text-xs bg-indigo-50 text-indigo-600 border border-indigo-100 px-2 py-1 rounded-md font-medium flex items-center gap-1 hover:bg-indigo-100 transition"><i class="ph ph-user-portrait"></i> นักเรียน</button>`;
+                        photoBtns += `<button onclick="openImageModalByStudent('${s.id}', 'student')" class="mt-2 text-[10px] md:text-xs bg-indigo-50 text-indigo-600 border border-indigo-100 px-2 py-1 rounded-md font-medium flex items-center gap-1 hover:bg-indigo-100 transition"><i class="ph ph-user-portrait"></i> นักเรียน</button>`;
                     }
                     if (s.housePic) {
-                        photoBtns += `<button onclick="openImageModal('${s.housePic}', 'รูปบ้าน: ${s.fName}')" class="mt-2 text-[10px] md:text-xs bg-indigo-50 text-indigo-600 border border-indigo-100 px-2 py-1 rounded-md font-medium flex items-center gap-1 hover:bg-indigo-100 transition"><i class="ph ph-house"></i> บ้าน</button>`;
+                        photoBtns += `<button onclick="openImageModalByStudent('${s.id}', 'house')" class="mt-2 text-[10px] md:text-xs bg-indigo-50 text-indigo-600 border border-indigo-100 px-2 py-1 rounded-md font-medium flex items-center gap-1 hover:bg-indigo-100 transition"><i class="ph ph-house"></i> บ้าน</button>`;
                     }
 
                     html += `
@@ -494,9 +488,11 @@
             }
         }
 
-        // --- ระบบเปิดดูรูปภาพ (แก้ปัญหาลิงก์ Google Drive) ---
+        // --- ระบบเปิดดูรูปภาพ (รองรับทั้ง Google Drive URL และ Base64) ---
         function getDriveDirectUrl(url) {
             if (!url) return '';
+            if (url.startsWith('data:image')) return url; // ถ้าเป็น Base64 ให้แสดงผลได้เลย
+            
             const match = url.match(/file\/d\/([a-zA-Z0-9_-]+)/);
             if (match && match[1]) return `https://drive.google.com/uc?id=${match[1]}`;
             const idMatch = url.match(/id=([a-zA-Z0-9_-]+)/);
@@ -504,14 +500,27 @@
             return url;
         }
 
-        function openImageModal(imgUrl, title) {
-            const directUrl = getDriveDirectUrl(imgUrl);
+        // โหลดรูปจาก id นักเรียนแทน เพื่อป้องกันการแทรกข้อความยาวๆ ลงใน HTML
+        function openImageModalByStudent(studentId, type) {
+            const student = allStudents.find(s => String(s.id) === String(studentId));
+            if(!student) return;
+
+            const imgData = type === 'student' ? student.studentPic : student.housePic;
+            const title = (type === 'student' ? 'รูปนักเรียน: ' : 'รูปบ้าน: ') + student.fName;
+
+            const directUrl = getDriveDirectUrl(imgData);
             const imgObj = document.getElementById('modalImageObj');
             const imgLink = document.getElementById('modalImageLink');
             
             imgObj.src = directUrl;
-            imgObj.dataset.originalUrl = imgUrl;
-            imgLink.href = imgUrl; 
+            imgObj.dataset.originalUrl = imgData;
+            
+            // ถ้าเป็นลิงก์เว็บ ให้แสดงปุ่มเปิดในหน้าต่างใหม่ (ซ่อนไว้ก่อน ถ้าพังค่อยโชว์)
+            if(directUrl.startsWith('http')) {
+                imgLink.href = imgData; 
+            } else {
+                imgLink.href = '#'; 
+            }
             imgLink.classList.add('hidden');
             
             document.getElementById('modalImageTitle').innerText = title;
