@@ -2,7 +2,10 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1e40af">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>ระบบวางแผนเยี่ยมบ้าน ม.5/2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
@@ -10,403 +13,312 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap');
-        body { font-family: 'Prompt', sans-serif; background-color: #f4f7f6; }
-        #map { height: 500px; z-index: 10; border-radius: 1rem; border: 4px solid white; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); }
+        body { font-family: 'Prompt', sans-serif; background-color: #f4f7f6; -webkit-tap-highlight-color: transparent; }
+        #map { height: 45vh; min-height: 350px; max-height: 600px; z-index: 10; border-radius: 1rem; border: 4px solid white; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); }
         .custom-div-icon { background: transparent; border: none; }
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .cb-custom { width: 1.25rem; height: 1.25rem; accent-color: #3b82f6; cursor: pointer; }
     </style>
 </head>
-<body class="pb-12 text-slate-800">
+<body class="pb-20 text-slate-800">
 
-    <div class="bg-gradient-to-r from-blue-800 to-blue-600 text-white pt-8 pb-16 px-4 shadow-lg">
-        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6 text-center md:text-left">
-            <div>
-                <h1 class="text-3xl md:text-4xl font-bold flex items-center justify-center md:justify-start gap-3">
-                    <i class="ph ph-map-trifold text-4xl text-blue-200 drop-shadow-md"></i>
-                    ระบบจัดเส้นทางเยี่ยมบ้านอัจฉริยะ
-                </h1>
-                <p class="text-blue-100 mt-2 text-base md:text-lg opacity-90">ม.5/2 โรงเรียนพรหมานุสรณ์จังหวัดเพชรบุรี</p>
-            </div>
-            <div class="flex flex-wrap justify-center gap-3 md:gap-4">
-                <div class="bg-white/10 rounded-2xl px-6 py-4 border border-white/20 text-center backdrop-blur-md shadow-inner">
-                    <p class="text-blue-100 text-sm font-medium">นักเรียนในระบบ</p>
-                    <p class="text-3xl font-bold mt-1" id="statTotal">0</p>
+    <div class="bg-gradient-to-r from-blue-800 to-blue-600 text-white pt-6 pb-12 px-4 shadow-lg sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto flex flex-col items-center gap-3 text-center">
+            <h1 class="text-2xl md:text-3xl font-bold flex items-center justify-center gap-2">
+                <i class="ph ph-map-trifold text-3xl text-blue-200"></i>
+                จัดเส้นทางเยี่ยมบ้านอัจฉริยะ
+            </h1>
+            <div class="flex justify-center gap-2 w-full max-w-sm">
+                <div class="bg-white/10 rounded-xl px-4 py-2 border border-white/20 text-center flex-1 backdrop-blur-md">
+                    <p class="text-blue-100 text-[11px] md:text-xs font-medium">รอเยี่ยม (คน)</p>
+                    <p class="text-xl md:text-2xl font-bold" id="statTotal">0</p>
                 </div>
-                <div class="bg-emerald-500/20 rounded-2xl px-6 py-4 border border-emerald-400/30 text-center backdrop-blur-md shadow-inner">
-                    <p class="text-emerald-100 text-sm font-medium">เยี่ยมแล้ว</p>
-                    <p class="text-3xl font-bold text-emerald-300 mt-1" id="statVisited">0</p>
+                <div class="bg-emerald-500/20 rounded-xl px-4 py-2 border border-emerald-400/30 text-center flex-1 backdrop-blur-md">
+                    <p class="text-emerald-100 text-[11px] md:text-xs font-medium">เยี่ยมแล้ว (คน)</p>
+                    <p class="text-xl md:text-2xl font-bold text-emerald-300" id="statVisited">0</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="max-w-7xl mx-auto px-4 -mt-10 relative z-20">
-        
-        <!-- Controls & Filters Panel -->
-        <div class="bg-white rounded-3xl shadow-xl p-6 mb-8 border border-slate-100">
-            <h2 class="text-lg font-bold text-slate-700 mb-4 flex items-center gap-2 border-b pb-3">
-                <i class="ph ph-faders text-blue-500 text-xl"></i> เครื่องมือจัดเส้นทางและตัวกรอง
-            </h2>
-            
-            <div class="grid grid-cols-1 md:grid-cols-12 gap-5 items-end">
-                
-                <!-- Filters -->
-                <div class="md:col-span-12 grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
+    <div class="max-w-7xl mx-auto px-3 md:px-6 -mt-6 relative z-20">
+        <!-- Controls Panel -->
+        <div class="bg-white rounded-2xl shadow-lg p-4 md:p-6 mb-6 border border-slate-100">
+            <div class="grid grid-cols-1 gap-4 md:gap-6">
+                <!-- กรองพื้นที่ -->
+                <div class="bg-blue-50 border border-blue-100 rounded-xl p-3 flex flex-col md:flex-row justify-between gap-3">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-500 mb-1.5">จังหวัด <span id="geoStatus" class="text-blue-500 font-normal text-xs ml-1"></span></label>
-                        <select id="filterProvince" onchange="updateFilterDropdowns('province')" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm appearance-none bg-slate-50 cursor-pointer transition">
-                            <option value="">-- ทุกจังหวัด --</option>
-                        </select>
+                        <h3 class="font-bold text-blue-800 text-sm md:text-base flex items-center gap-1.5"><i class="ph ph-funnel text-lg"></i> กรองพื้นที่ที่ต้องการ <span id="geoStatus" class="text-blue-500 font-normal text-xs ml-1"></span></h3>
+                        <p id="filterSummaryText" class="text-xs text-blue-600 mt-1">ยังไม่ได้เลือกพื้นที่ (แสดงทั้งหมด)</p>
                     </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-500 mb-1.5">อำเภอ</label>
-                        <select id="filterDistrict" onchange="updateFilterDropdowns('district')" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm appearance-none bg-slate-50 cursor-pointer transition">
-                            <option value="">-- ทุกอำเภอ --</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-500 mb-1.5">ตำบล</label>
-                        <select id="filterSubdistrict" onchange="generatePlan()" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm appearance-none bg-slate-50 cursor-pointer transition">
-                            <option value="">-- ทุกตำบล --</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Routing Config -->
-                <div class="md:col-span-3">
-                    <label class="block text-xs font-semibold text-slate-500 mb-1.5">จำนวนบ้านที่ต้องการไป/วัน</label>
-                    <input type="number" id="perDayLimit" value="5" min="1" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500 text-lg font-bold text-center text-slate-700 bg-slate-50">
-                </div>
-                
-                <div class="md:col-span-6">
-                    <label class="block text-xs font-semibold text-slate-500 mb-1.5">พิกัดจุดเริ่มต้น (ละติจูด, ลองจิจูด)</label>
-                    <div class="flex gap-2">
-                        <input type="text" id="startCoords" value="13.1126, 99.9392" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 outline-none focus:border-blue-500 text-sm font-mono text-slate-600 bg-slate-50">
-                        <button onclick="useSchoolCoords()" class="whitespace-nowrap bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-xl text-sm font-semibold transition flex items-center gap-1.5 border border-slate-200 shadow-sm" title="พิกัดโรงเรียน">
-                            🏫 รร.
-                        </button>
-                        <button onclick="useCurrentCoords()" class="whitespace-nowrap bg-rose-50 hover:bg-rose-100 text-rose-600 px-4 py-2.5 rounded-xl text-sm font-semibold transition flex items-center gap-1.5 border border-rose-200 shadow-sm">
-                            📍 ปัจจุบัน
-                        </button>
-                    </div>
-                </div>
-
-                <div class="md:col-span-3">
-                    <button onclick="generatePlan()" class="w-full bg-gradient-to-r from-pink-600 to-rose-500 hover:from-pink-700 hover:to-rose-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-pink-500/30 transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2 text-base border border-pink-500/50">
-                        <i class="ph ph-magic-wand text-xl"></i> ประมวลผลเส้นทาง
+                    <button onclick="openFilterModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm text-sm transition flex justify-center items-center gap-1">
+                        <i class="ph ph-list-checks text-lg"></i> เลือกอำเภอ/ตำบล
                     </button>
                 </div>
+
+                <!-- Config -->
+                <div class="flex flex-wrap md:flex-nowrap gap-3 items-end">
+                    <div class="w-[30%] md:w-1/4">
+                        <label class="block text-[10px] md:text-xs font-semibold text-slate-500 mb-1.5 truncate">ไปวันละ (หลัง)</label>
+                        <input type="number" id="perDayLimit" value="5" min="1" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-pink-500 text-sm md:text-base font-bold text-center bg-slate-50">
+                    </div>
+                    <div class="w-[66%] md:flex-1">
+                        <label class="block text-[10px] md:text-xs font-semibold text-slate-500 mb-1.5 flex justify-between">
+                            <span>พิกัดเริ่มต้นนำทาง</span>
+                        </label>
+                        <div class="flex gap-1 md:gap-2">
+                            <input type="text" id="startCoords" value="13.1126, 99.9392" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none text-xs md:text-sm font-mono text-slate-600 bg-slate-50 hidden md:block">
+                            <button onclick="useSchoolCoords()" class="flex-1 md:px-5 bg-slate-100 text-slate-700 py-2.5 rounded-lg text-xs md:text-sm font-semibold border border-slate-200 shadow-sm active:bg-slate-200">🏫 รร.</button>
+                            <button onclick="useCurrentCoords()" class="flex-1 md:px-5 bg-rose-50 text-rose-600 py-2.5 rounded-lg text-xs md:text-sm font-semibold border border-rose-200 shadow-sm active:bg-rose-100">📍 ปัจจุบัน</button>
+                        </div>
+                    </div>
+                </div>
+                <button onclick="generatePlan()" class="w-full bg-gradient-to-r from-pink-600 to-rose-500 text-white font-bold py-3.5 rounded-xl shadow-md flex items-center justify-center gap-2 text-base mt-2">
+                    <i class="ph ph-magic-wand text-xl"></i> ประมวลผลจัดเส้นทางใหม่
+                </button>
             </div>
         </div>
 
-        <!-- Map Container -->
-        <div class="relative mb-8">
+        <div class="relative mb-6">
             <div id="map" class="w-full bg-slate-200"></div>
-            
             <div id="loader" class="absolute inset-0 bg-white/95 z-50 flex flex-col items-center justify-center rounded-2xl border-4 border-white backdrop-blur-sm">
-                <i class="ph ph-spinner-gap animate-spin text-5xl text-blue-600 mb-4"></i>
-                <p class="text-slate-700 font-semibold text-lg" id="loaderText">กำลังเชื่อมต่อฐานข้อมูล Google Sheet...</p>
+                <i class="ph ph-spinner-gap animate-spin text-4xl md:text-5xl text-blue-600 mb-3 md:mb-4"></i>
+                <p class="text-slate-700 font-semibold text-sm md:text-lg" id="loaderText">กำลังดึงข้อมูลจากระบบ...</p>
             </div>
         </div>
 
-        <!-- Plan Summary & List -->
-        <div class="bg-white rounded-3xl shadow-lg border border-slate-100 p-6 md:p-8">
-            <div class="border-l-4 border-pink-500 pl-5 mb-8">
-                <h2 class="text-2xl font-bold text-slate-800">แผนการเยี่ยมบ้านรายวัน</h2>
-                <p class="text-sm text-slate-500 mt-1.5" id="planSummaryText">กำลังเตรียมข้อมูลเส้นทาง...</p>
-                <div class="flex flex-wrap items-center gap-4 mt-3 text-xs">
-                    <span class="flex items-center gap-1.5 text-emerald-600 font-semibold bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-100"><div class="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-sm"></div> เยี่ยมแล้ว</span>
-                    <span class="flex items-center gap-1.5 text-blue-600 font-semibold bg-blue-50 px-2.5 py-1 rounded-md border border-blue-100"><div class="w-2.5 h-2.5 bg-blue-500 rounded-full shadow-sm"></div> วันที่ 1</span>
-                    <span class="flex items-center gap-1.5 text-pink-600 font-semibold bg-pink-50 px-2.5 py-1 rounded-md border border-pink-100"><div class="w-2.5 h-2.5 bg-pink-500 rounded-full shadow-sm"></div> วันที่ 2</span>
-                </div>
+        <div class="bg-white rounded-2xl shadow-lg border border-slate-100 p-4 md:p-6 mb-8">
+            <div class="border-l-4 border-pink-500 pl-3 md:pl-4 mb-5 md:mb-6">
+                <h2 class="text-lg md:text-xl font-bold text-slate-800">แผนรายวัน</h2>
+                <p class="text-xs md:text-sm text-slate-500 mt-1" id="planSummaryText">กำลังเตรียมข้อมูล...</p>
             </div>
-
-            <div id="planListContainer" class="space-y-6"></div>
-            
-            <div id="unmappedContainer" class="mt-10 hidden">
-                <div class="bg-rose-50 border border-rose-200 rounded-2xl p-5">
-                    <h3 class="font-bold text-rose-600 mb-4 flex items-center gap-2"><i class="ph ph-warning-circle text-2xl"></i> นักเรียนที่ไม่มีพิกัด (ไม่สามารถรวมในเส้นทางได้)</h3>
-                    <div id="unmappedList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
-                </div>
-            </div>
+            <div id="planListContainer" class="space-y-4 md:space-y-6"></div>
         </div>
-
     </div>
 
-    <!-- Custom Modal Popup -->
-    <div id="customModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
-        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 transform scale-95 transition-transform duration-300" id="modalContent">
-            <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-blue-100 mb-6" id="modalIconContainer">
-                <i class="ph ph-info text-3xl text-blue-600" id="modalIcon"></i>
+    <!-- Modals (ตัวกรอง และ แจ้งเตือน) -->
+    <div id="filterModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] hidden flex flex-col justify-end md:justify-center opacity-0 transition-opacity duration-300">
+        <div class="bg-white w-full md:max-w-md md:rounded-2xl md:mx-auto rounded-t-2xl shadow-2xl flex flex-col max-h-[85vh] transform translate-y-full md:translate-y-0 md:scale-95 transition-all duration-300" id="filterModalContent">
+            <div class="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-2xl">
+                <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="ph ph-funnel text-blue-500"></i> เลือกพื้นที่</h3>
+                <button onclick="closeFilterModal()" class="text-slate-400 hover:text-slate-600"><i class="ph ph-x text-2xl"></i></button>
             </div>
-            <h3 class="text-xl font-bold text-center text-slate-800 mb-2" id="modalTitle">แจ้งเตือน</h3>
-            <p class="text-center text-slate-500 mb-6 text-sm" id="modalMessage">ข้อความ</p>
-            <button onclick="closeModal()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 px-4 rounded-xl transition duration-200 shadow-md">
-                ตกลงรับทราบ
-            </button>
+            <div class="overflow-y-auto p-4 flex-1" id="filterOptionsContainer"></div>
+            <div class="p-4 border-t bg-white flex gap-2">
+                <button onclick="clearFilters()" class="w-1/3 bg-slate-100 text-slate-700 font-bold py-3 rounded-xl text-sm border border-slate-200">ล้างค่า</button>
+                <button onclick="applyFilters()" class="w-2/3 bg-blue-600 text-white font-bold py-3 rounded-xl text-sm shadow-md">ตกลง</button>
+            </div>
         </div>
+    </div>
+
+    <!-- Modal แนะนำเพื่อนบ้าน -->
+    <div id="nearbyModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] hidden flex items-center justify-center opacity-0 transition-opacity duration-300 p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm transform scale-95 transition-transform duration-300 flex flex-col max-h-[80vh]" id="nearbyModalContent">
+            <div class="p-4 border-b flex justify-between items-center bg-blue-50 rounded-t-2xl">
+                <h3 class="font-bold text-blue-800 flex items-center gap-2"><i class="ph ph-users-three text-xl"></i> เพื่อนบ้านใกล้เคียง</h3>
+                <button onclick="closeNearbyModal()" class="text-slate-400 hover:text-slate-600"><i class="ph ph-x text-xl"></i></button>
+            </div>
+            <div class="p-4 bg-white border-b border-slate-100">
+                <p class="text-xs text-slate-500">พิกัดอ้างอิงจากบ้านของ:</p>
+                <p class="font-bold text-slate-800 text-lg" id="nearbyTargetName">-</p>
+            </div>
+            <div class="overflow-y-auto p-4 flex-1 bg-slate-50" id="nearbyListContainer"></div>
+        </div>
+    </div>
+
+    <!-- แจ้งเตือน Toast -->
+    <div id="toast" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-800/90 backdrop-blur-sm text-white px-5 py-3 rounded-full shadow-lg text-sm font-medium transition-opacity duration-300 opacity-0 pointer-events-none z-[250] flex items-center gap-2">
+        <span id="toastMsg">...</span>
     </div>
 
     <script>
-        const SHEET_ID = '1LH1PGlKd6RQSfDb_10OPZTuaZSN2hUv1mi5mUR64QsI';
+        // =========================================================
+        // ❗❗ วาง URL Web App ของคุณครูที่นี่ ❗❗
+        const API_URL = "https://script.google.com/macros/s/AKfycbxKk-c6eQKyxM25xjgEXIonoNyKiBsDPdhccKqOY3gLeOb1Y8NfhigIgYZs_UOIprYS/exec";
+        // =========================================================
 
-        let map;
-        let mapLayerGroup;
+        let map, mapLayerGroup;
         let allStudents = [];
-        let visitedStatus = JSON.parse(localStorage.getItem('visitedStudentsM52')) || {};
-        let addressCache = JSON.parse(localStorage.getItem('addressCacheM52')) || {}; // Cache ป้องกันการโหลดซ้ำซ้อน
+        let addressCache = {}; // ไม่ใช้ localStorage บน Google Sites, แต่ใช้ได้บน GitHub
         let currentPlan = [];
-        let unmappedStudents = [];
+        let selectedDistricts = [], selectedSubdistricts = [];
 
         const dayColors = [
-            { bg: 'bg-blue-500', border: 'border-blue-600', hex: '#3b82f6' },
-            { bg: 'bg-pink-500', border: 'border-pink-600', hex: '#ec4899' },
-            { bg: 'bg-orange-500', border: 'border-orange-600', hex: '#f97316' },
-            { bg: 'bg-purple-500', border: 'border-purple-600', hex: '#a855f7' },
-            { bg: 'bg-emerald-500', border: 'border-emerald-600', hex: '#10b981' },
-            { bg: 'bg-indigo-500', border: 'border-indigo-600', hex: '#6366f1' }
+            { bg: 'bg-blue-500', hex: '#3b82f6' }, { bg: 'bg-pink-500', hex: '#ec4899' },
+            { bg: 'bg-orange-500', hex: '#f97316' }, { bg: 'bg-purple-500', hex: '#a855f7' },
+            { bg: 'bg-cyan-500', hex: '#06b6d4' }, { bg: 'bg-indigo-500', hex: '#6366f1' }
         ];
 
-        // --- UI Functions ---
-        function showModal(title, message, type = 'info') {
-            const modal = document.getElementById('customModal');
-            const content = document.getElementById('modalContent');
-            const iconContainer = document.getElementById('modalIconContainer');
-            const icon = document.getElementById('modalIcon');
-            
-            document.getElementById('modalTitle').innerText = title;
-            document.getElementById('modalMessage').innerText = message;
+        // --- ระบบ Storage ที่ปลอดภัยขึ้น ---
+        function loadStoredData() {
+            try {
+                // บน GitHub Pages, localStorage จะทำงานได้ดีเยี่ยม
+                addressCache = JSON.parse(localStorage.getItem('addressCacheM52')) || {}; 
+            } catch (error) {
+                addressCache = {};
+            }
+        }
 
-            if(type === 'error') {
-                iconContainer.className = 'mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-rose-100 mb-6';
-                icon.className = 'ph ph-warning-circle text-4xl text-rose-600';
-            } else if (type === 'success') {
-                iconContainer.className = 'mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-emerald-100 mb-6';
-                icon.className = 'ph ph-check-circle text-4xl text-emerald-600';
-            } else {
-                iconContainer.className = 'mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-blue-100 mb-6';
-                icon.className = 'ph ph-info text-4xl text-blue-600';
+        function initMap() {
+            map = L.map('map', { tap: false }).setView([13.1126, 99.9392], 11);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(map);
+            mapLayerGroup = L.layerGroup().addTo(map);
+            setTimeout(() => { map.invalidateSize(); }, 500);
+        }
+
+        // ดึงข้อมูลผ่าน API โดยตรง
+        function fetchDirectFromSheet() {
+            if(API_URL === "วาง_URL_ที่นี่") {
+                document.getElementById('loader').innerHTML = `<p class="text-rose-600 font-bold p-4 text-center">อ๊ะ! อาจารย์ลืมใส่ URL Web App ลงในบรรทัดที่ 103 ครับ</p>`;
+                return;
             }
 
-            modal.classList.remove('hidden');
-            setTimeout(() => {
-                modal.classList.remove('opacity-0');
-                content.classList.remove('scale-95');
-                content.classList.add('scale-100');
-            }, 10);
-        }
-
-        function closeModal() {
-            const modal = document.getElementById('customModal');
-            const content = document.getElementById('modalContent');
-            modal.classList.add('opacity-0');
-            content.classList.remove('scale-100');
-            content.classList.add('scale-95');
-            setTimeout(() => { modal.classList.add('hidden'); }, 300);
-        }
-
-        // --- Core Setup ---
-        function initMap() {
-            map = L.map('map').setView([13.1126, 99.9392], 11);
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
-            }).addTo(map);
-            mapLayerGroup = L.layerGroup().addTo(map);
-        }
-
-        // 🟢 กลับมาใช้วิธี JSONP (Script Injection) เพื่อทะลุบล็อก CORS ทันที
-        function fetchDirectFromSheet() {
             const loaderText = document.getElementById('loaderText');
-            loaderText.innerText = "กำลังดึงข้อมูลทะลุบล็อก (JSONP)...";
+            loaderText.innerText = "กำลังเชื่อมต่อข้อมูล...";
 
-            // ตั้งเวลา Timeout
+            // สุ่มชื่อฟังก์ชัน JSONP Callback ทะลุ Cache
+            const cbName = 'callback_' + Date.now() + Math.floor(Math.random() * 1000);
+            
             const timeoutId = setTimeout(() => {
-                showFetchError("การเชื่อมต่อหมดเวลา (Timeout) โปรดตรวจสอบอินเทอร์เน็ต");
-            }, 10000);
+                document.getElementById('loader').innerHTML = `<p class="text-rose-600 font-bold p-4 text-center">การเชื่อมต่อหมดเวลา โปรดรีเฟรชหน้าจอ</p>`;
+            }, 15000);
 
-            window.googleSheetCallback = function(data) {
+            window[cbName] = function(data) {
                 clearTimeout(timeoutId);
-                if (data.status === 'error') {
-                    showFetchError("Google แจ้งเตือน: " + data.errors[0].message);
-                    return;
+                delete window[cbName];
+                if (data.status === 'success') {
+                    processData(data.data);
+                } else {
+                    document.getElementById('loader').innerHTML = `<p class="text-rose-600 font-bold p-4 text-center">เกิดข้อผิดพลาดจากเซิร์ฟเวอร์</p>`;
                 }
-                if (!data.table || !data.table.rows) {
-                    showFetchError("ไม่พบข้อมูลในตาราง");
-                    return;
-                }
-                processData(data.table.rows);
             };
 
             const script = document.createElement('script');
-            script.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=responseHandler:googleSheetCallback`;
+            script.src = `${API_URL}?action=read&callback=${cbName}&t=${Date.now()}`;
             script.onerror = () => {
                 clearTimeout(timeoutId);
-                showFetchError("เบราว์เซอร์บล็อกสคริปต์ (CORS) หรือไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ Google ได้");
+                document.getElementById('loader').innerHTML = `<p class="text-rose-600 font-bold p-4 text-center">โดนบล็อกการดึงข้อมูล หรือ URL ผิด</p>`;
             };
-            document.body.appendChild(script);
-        }
-
-        // แสดงข้อความ Error ถ้าดึงไม่ได้
-        function showFetchError(msg) {
-            document.getElementById('loader').innerHTML = `
-                <i class="ph ph-warning-circle text-6xl text-rose-500 mb-4"></i>
-                <div class="text-rose-600 text-xl font-bold mb-2">เข้าถึงข้อมูลไม่ได้</div>
-                <div class="text-slate-600 text-sm max-w-md text-center bg-rose-50 p-4 border border-rose-200 rounded-xl">
-                    <b>สาเหตุ:</b> ${msg}<br><br>
-                    <b>คำแนะนำ:</b><br>
-                    หากอาจารย์แชร์ "ทุกคนที่มีลิงก์" แล้ว อาจเกิดจากเบราว์เซอร์เคร่งครัดเรื่องความปลอดภัย ให้ลองรีเฟรชหน้าใหม่อีกครั้งครับ
-                </div>
-            `;
+            document.head.appendChild(script);
         }
 
         function processData(rows) {
             allStudents = [];
-            unmappedStudents = [];
-            
             for (let i = 1; i < rows.length; i++) {
-                const row = rows[i].c;
+                const row = rows[i];
                 if (!row) continue;
                 
-                const fName = row[2] && row[2].v ? row[2].v.toString().trim() : '';
+                const fName = row[2] ? row[2].toString().trim() : '';
                 if (!fName) continue; 
 
-                const stdNo = row[1] && row[1].v ? row[1].v.toString() : '-';
-                const lName = row[3] && row[3].v ? row[3].v.toString().trim() : '';
-                const phone = row[5] && row[5].v ? row[5].v.toString() : '-';
+                const stdNo = row[1] ? row[1].toString() : '-';
+                const lName = row[3] ? row[3].toString().trim() : '';
+                const phone = row[5] ? row[5].toString() : '-';
+                const lat = row[6] ? parseFloat(row[6]) : null;
+                const lng = row[7] ? parseFloat(row[7]) : null;
                 
-                const lat = row[6] && row[6].v ? parseFloat(row[6].v) : null;
-                const lng = row[7] && row[7].v ? parseFloat(row[7].v) : null;
+                // คอลัมน์ L (Index 11) คือสถานะเยี่ยมบ้าน ที่ถูกบันทึกไว้ใน Sheet
+                const statusFromSheet = row[11] ? row[11].toString().trim() : '';
+                const isVisited = (statusFromSheet === 'เยี่ยมแล้ว');
 
                 const studentId = `${stdNo}_${fName}`;
-                const isVisited = visitedStatus[studentId] === true;
-
-                // ค่าพื้นฐานของที่อยู่
-                let address = { province: '', district: '', subdistrict: '', full: 'กำลังค้นหาพิกัด...' };
+                let address = { province: '', district: '', subdistrict: '', full: 'ค้นหาพิกัด...' };
                 
-                // ถ้าระบบเคยแปลพิกัดนี้แล้ว ให้ดึงจาก Cache
                 const coordKey = `${lat},${lng}`;
-                if(lat && lng && addressCache[coordKey]) {
-                    address = addressCache[coordKey];
-                }
+                if(lat && lng && addressCache[coordKey]) address = addressCache[coordKey];
 
-                const studentObj = { id: studentId, stdNo, fName, lName, phone, lat, lng, isVisited, address, coordKey };
-
-                if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
-                    allStudents.push(studentObj);
-                } else {
-                    unmappedStudents.push(studentObj);
+                if (lat && !isNaN(lat)) {
+                    allStudents.push({ id: studentId, stdNo, fName, lName, phone, lat, lng, isVisited, address, coordKey });
                 }
             }
 
             document.getElementById('loader').style.display = 'none';
-            updateStats();
-            updateFilterDropdowns('init');
-            generatePlan(); 
-            
-            // เริ่มกระบวนการ Reverse Geocoding เบื้องหลัง
-            startBackgroundGeocoding();
+            updateStats(); buildFilterOptions(); generatePlan(); startBackgroundGeocoding();
         }
 
-        // ฟังก์ชันแปลพิกัดเป็นที่อยู่ (ทำงานเบื้องหลัง ป้องกันเว็บค้าง)
+        // บันทึกสถานะเยี่ยมบ้าน ลง Sheet โดยตรง
+        function toggleVisit(studentId, btnElement) {
+            let student = allStudents.find(s => s.id === studentId);
+            if(!student) return;
+
+            const newStatus = !student.isVisited;
+            student.isVisited = newStatus;
+            
+            const originalHtml = btnElement.innerHTML;
+            btnElement.innerHTML = `<i class="ph ph-spinner animate-spin"></i> รอเซฟ...`;
+            btnElement.disabled = true;
+
+            const revert = () => {
+                student.isVisited = !newStatus;
+                btnElement.innerHTML = originalHtml;
+                btnElement.disabled = false;
+                alert("บันทึกไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ต");
+            };
+
+            const cbName = 'cb_update_' + Date.now() + Math.floor(Math.random() * 1000);
+            const timeoutId = setTimeout(() => {
+                delete window[cbName];
+                revert();
+            }, 10000);
+
+            window[cbName] = function(data) {
+                clearTimeout(timeoutId);
+                delete window[cbName];
+                if(data.status === 'success') {
+                    updateStats();
+                    refreshUI(); // <--- รีเฟรชแค่ UI โดยไม่จัดเส้นทางใหม่
+                    showToast(newStatus ? "บันทึกลง Sheet เรียบร้อย" : "ยกเลิกแล้ว", newStatus);
+                } else {
+                    revert();
+                }
+            };
+
+            const script = document.createElement('script');
+            script.src = `${API_URL}?action=update&id=${encodeURIComponent(studentId)}&status=${newStatus}&callback=${cbName}&t=${Date.now()}`;
+            script.onerror = () => {
+                clearTimeout(timeoutId);
+                revert();
+            };
+            document.head.appendChild(script);
+        }
+
         async function startBackgroundGeocoding() {
             let needsUpdate = false;
             let statusEl = document.getElementById('geoStatus');
-            statusEl.innerText = "(กำลังประมวลผลที่อยู่...)";
+            statusEl.innerText = "(ค้นหาพื้นที่...)";
 
             for (let i = 0; i < allStudents.length; i++) {
                 let s = allStudents[i];
-                if (s.address.province === '' && s.lat && s.lng) {
+                if (s.address.province === '' && s.lat) {
                     try {
-                        // OpenStreetMap Nominatim API (Rate limit 1 req/sec)
                         const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${s.lat}&lon=${s.lng}&accept-language=th`);
                         const data = await res.json();
-                        
                         if(data && data.address) {
-                            let a = data.address;
-                            // ทำความสะอาดชื่อให้อ่านง่าย
-                            s.address.subdistrict = (a.suburb || a.village || a.quarter || a.hamlet || a.municipality || '').replace('ตำบล', '').replace('ต.', '').trim();
-                            s.address.district = (a.county || a.city_district || a.town || a.city || '').replace('อำเภอ', '').replace('อ.', '').replace('เขต', '').trim();
-                            s.address.province = (a.state || a.province || '').replace('จังหวัด', '').replace('จ.', '').trim();
-                            
-                            s.address.full = `ต.${s.address.subdistrict || '-'} อ.${s.address.district || '-'} จ.${s.address.province || '-'}`;
-                            
-                            // บันทึกเข้า Cache
+                            s.address.subdistrict = (data.address.suburb || data.address.village || '').replace('ตำบล', '').replace('ต.', '').trim();
+                            s.address.district = (data.address.county || data.address.city || '').replace('อำเภอ', '').replace('อ.', '').trim();
+                            s.address.province = (data.address.state || '').replace('จังหวัด', '').replace('จ.', '').trim();
+                            s.address.full = `ต.${s.address.subdistrict} อ.${s.address.district}`;
                             addressCache[s.coordKey] = s.address;
                             needsUpdate = true;
                         }
-                    } catch(e) {
-                        console.error("Geocoding failed for", s.fName, e);
-                        s.address.full = "แปลพิกัดไม่สำเร็จ";
-                    }
-                    // หน่วงเวลา 1 วินาทีเพื่อเคารพกฎของ API ฟรี ป้องกันการโดนแบน IP
-                    await new Promise(r => setTimeout(r, 1100));
+                    } catch(e) {}
+                    await new Promise(r => setTimeout(r, 1100)); // หน่วงเวลา API
                 }
             }
 
             if(needsUpdate) {
-                localStorage.setItem('addressCacheM52', JSON.stringify(addressCache));
-                updateFilterDropdowns('init'); // อัปเดตตัวกรองใหม่ให้มีชื่อสถานที่ครบ
-                generatePlan(); // วาดหน้าจอใหม่
+                try { localStorage.setItem('addressCacheM52', JSON.stringify(addressCache)); } catch(e){}
+                buildFilterOptions(); refreshUI();
             }
             statusEl.innerText = "";
         }
 
-        // อัปเดต Dropdown ตามสถานที่ที่มีอยู่จริง
-        function updateFilterDropdowns(triggerSource) {
-            const pvSelect = document.getElementById('filterProvince');
-            const dtSelect = document.getElementById('filterDistrict');
-            const sdSelect = document.getElementById('filterSubdistrict');
-
-            const currentPv = pvSelect.value;
-            const currentDt = dtSelect.value;
-            const currentSd = sdSelect.value;
-
-            // กรองหา Province ที่มี
-            let provinces = [...new Set(allStudents.map(s => s.address.province).filter(Boolean))].sort();
-            
-            if(triggerSource === 'init') {
-                pvSelect.innerHTML = '<option value="">-- ทุกจังหวัด --</option>';
-                provinces.forEach(p => pvSelect.innerHTML += `<option value="${p}">${p}</option>`);
-                pvSelect.value = currentPv;
-            }
-
-            // กรองหา District โดยยึด Province ที่เลือก
-            let districts = [...new Set(allStudents
-                .filter(s => currentPv === "" || s.address.province === currentPv)
-                .map(s => s.address.district).filter(Boolean))].sort();
-
-            if(triggerSource === 'init' || triggerSource === 'province') {
-                dtSelect.innerHTML = '<option value="">-- ทุกอำเภอ --</option>';
-                districts.forEach(d => dtSelect.innerHTML += `<option value="${d}">${d}</option>`);
-                dtSelect.value = triggerSource === 'province' ? '' : currentDt;
-                if(triggerSource === 'province') sdSelect.innerHTML = '<option value="">-- ทุกตำบล --</option>';
-            }
-
-            // กรองหา Subdistrict โดยยึด District ที่เลือก
-            let subdistricts = [...new Set(allStudents
-                .filter(s => currentPv === "" || s.address.province === currentPv)
-                .filter(s => dtSelect.value === "" || s.address.district === dtSelect.value)
-                .map(s => s.address.subdistrict).filter(Boolean))].sort();
-
-            if(triggerSource === 'init' || triggerSource === 'province' || triggerSource === 'district') {
-                sdSelect.innerHTML = '<option value="">-- ทุกตำบล --</option>';
-                subdistricts.forEach(sd => sdSelect.innerHTML += `<option value="${sd}">${sd}</option>`);
-                sdSelect.value = (triggerSource === 'province' || triggerSource === 'district') ? '' : currentSd;
-            }
-
-            if(triggerSource !== 'init') {
-                generatePlan();
-            }
-        }
-
         function updateStats() {
-            const total = allStudents.length + unmappedStudents.length;
-            const visited = allStudents.filter(s => s.isVisited).length + unmappedStudents.filter(s => s.isVisited).length;
-            document.getElementById('statTotal').innerText = total;
+            const total = allStudents.length;
+            const visited = allStudents.filter(s => s.isVisited).length;
+            document.getElementById('statTotal').innerText = total - visited;
             document.getElementById('statVisited').innerText = visited;
         }
 
@@ -414,304 +326,231 @@
             const R = 6371; 
             const dLat = (lat2 - lat1) * Math.PI / 180;
             const dLon = (lon2 - lon1) * Math.PI / 180;
-            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
             return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         }
 
         function generatePlan() {
-            mapLayerGroup.clearLayers();
-            currentPlan = [];
-            
-            const coordsInput = document.getElementById('startCoords').value.split(',');
-            const startLat = parseFloat(coordsInput[0]);
-            const startLng = parseFloat(coordsInput[1]);
+            mapLayerGroup.clearLayers(); currentPlan = [];
+            const coords = document.getElementById('startCoords').value.split(',');
+            const startLat = parseFloat(coords[0]); const startLng = parseFloat(coords[1]);
             const perDayLimit = parseInt(document.getElementById('perDayLimit').value) || 5;
 
-            if(isNaN(startLat) || isNaN(startLng)) {
-                showModal("พิกัดไม่ถูกต้อง", "กรุณากรอกพิกัดเป็นตัวเลข เช่น 13.1126, 99.9392", "error");
-                return;
-            }
-
-            // อ่านค่าจากฟิลเตอร์
-            const fProv = document.getElementById('filterProvince').value;
-            const fDist = document.getElementById('filterDistrict').value;
-            const fSubd = document.getElementById('filterSubdistrict').value;
-
-            // คัดกรองนักเรียนตามฟิลเตอร์ที่เลือก
             let filteredStudents = allStudents.filter(s => {
-                if (fProv && s.address.province !== fProv) return false;
-                if (fDist && s.address.district !== fDist) return false;
-                if (fSubd && s.address.subdistrict !== fSubd) return false;
-                return true;
+                if (selectedDistricts.length === 0 && selectedSubdistricts.length === 0) return true;
+                return selectedDistricts.includes(s.address.district) || selectedSubdistricts.includes(s.address.subdistrict);
             });
 
             let pendingStudents = filteredStudents.filter(s => !s.isVisited);
             let visitedStudents = filteredStudents.filter(s => s.isVisited);
+            let currentLoc = { lat: startLat, lng: startLng }, currentDayRoute = [];
 
-            let currentLoc = { lat: startLat, lng: startLng };
-            let currentDayRoute = [];
-
-            // อัลกอริทึม Nearest Neighbor จัดเรียงเส้นทางใกล้สุด
             while (pendingStudents.length > 0) {
-                let nearestIdx = 0;
-                let minDistance = Infinity;
-
+                let nearestIdx = 0, minDistance = Infinity;
                 for (let i = 0; i < pendingStudents.length; i++) {
                     const d = getDistance(currentLoc.lat, currentLoc.lng, pendingStudents[i].lat, pendingStudents[i].lng);
-                    if (d < minDistance) {
-                        minDistance = d;
-                        nearestIdx = i;
-                    }
+                    if (d < minDistance) { minDistance = d; nearestIdx = i; }
                 }
-
                 let nextStudent = pendingStudents.splice(nearestIdx, 1)[0];
                 nextStudent.distanceFromPrev = minDistance;
                 currentDayRoute.push(nextStudent);
-                
                 currentLoc = { lat: nextStudent.lat, lng: nextStudent.lng };
 
                 if (currentDayRoute.length >= perDayLimit || pendingStudents.length === 0) {
                     currentPlan.push(currentDayRoute);
                     currentDayRoute = [];
-                    currentLoc = { lat: startLat, lng: startLng }; // วันใหม่ เริ่มจากจุดเริ่มต้นใหม่
+                    currentLoc = { lat: startLat, lng: startLng }; 
                 }
             }
 
             drawMap(startLat, startLng, visitedStudents);
-            renderPlanList(startLat, startLng, visitedStudents.length, filteredStudents.length);
+            renderPlanList(visitedStudents, filteredStudents.length);
+        }
+
+        function refreshUI() {
+            const coords = document.getElementById('startCoords').value.split(',');
+            let filteredStudents = allStudents.filter(s => {
+                if (selectedDistricts.length === 0 && selectedSubdistricts.length === 0) return true;
+                return selectedDistricts.includes(s.address.district) || selectedSubdistricts.includes(s.address.subdistrict);
+            });
+            mapLayerGroup.clearLayers();
+            drawMap(parseFloat(coords[0]), parseFloat(coords[1]), filteredStudents.filter(s => s.isVisited));
+            renderPlanList(filteredStudents.filter(s => s.isVisited), filteredStudents.length);
         }
 
         function drawMap(startLat, startLng, visitedStudents) {
             let bounds = [[startLat, startLng]];
+            L.marker([startLat, startLng], { icon: L.divIcon({ className: 'custom-div-icon', html: `<div class="w-10 h-10 bg-slate-900 rounded-full flex items-center justify-center text-white text-xl shadow-xl border-4 border-white"><i class="ph ph-house-line"></i></div>`, iconSize: [40, 40]}) }).addTo(mapLayerGroup).bindPopup('จุดเริ่มต้น');
 
-            // จุดเริ่มต้น
-            L.marker([startLat, startLng], {
-                icon: L.divIcon({
-                    className: 'custom-div-icon',
-                    html: `<div class="w-11 h-11 bg-slate-900 rounded-full flex items-center justify-center text-white text-2xl shadow-xl border-4 border-white z-50 relative"><i class="ph ph-house-line"></i></div>`,
-                    iconSize: [44, 44], iconAnchor: [22, 22]
-                })
-            }).addTo(mapLayerGroup).bindPopup('<b class="text-base font-prompt">จุดเริ่มต้นการนำทาง</b>');
+            let planStudentIds = new Set();
+            currentPlan.forEach(day => day.forEach(s => planStudentIds.add(s.id)));
 
-            // หมุดสีเขียว (เยี่ยมแล้ว)
             visitedStudents.forEach(s => {
-                L.marker([s.lat, s.lng], {
-                    icon: L.divIcon({
-                        className: 'custom-div-icon',
-                        html: `<div class="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center text-white shadow-md border-2 border-white opacity-80"><i class="ph ph-check font-bold"></i></div>`,
-                        iconSize: [32, 32], iconAnchor: [16, 16]
-                    })
-                }).addTo(mapLayerGroup).bindPopup(`
-                    <div class="font-prompt text-center p-1">
-                        <b>${s.fName} ${s.lName}</b><br>
-                        <span class="text-xs text-slate-500">${s.address.full}</span><br>
-                        <span class="text-emerald-600 font-semibold text-xs mt-1 block bg-emerald-50 rounded py-0.5">✅ เยี่ยมเรียบร้อย</span>
-                    </div>
-                `);
+                if(planStudentIds.has(s.id)) return; 
+                L.marker([s.lat, s.lng], { icon: L.divIcon({ className: 'custom-div-icon', html: `<div class="w-7 h-7 bg-emerald-500 rounded-full flex items-center justify-center text-white shadow-md border-2 border-white opacity-80"><i class="ph ph-check font-bold text-xs"></i></div>`, iconSize: [28, 28]}) }).addTo(mapLayerGroup).bindPopup(`<b>${s.fName}</b>`);
                 bounds.push([s.lat, s.lng]);
             });
 
-            // หมุดเส้นทางแต่ละวัน
             currentPlan.forEach((dayRoute, dayIndex) => {
                 const colorObj = dayColors[dayIndex % dayColors.length];
                 let latlngs = [[startLat, startLng]];
-
                 dayRoute.forEach((s, index) => {
-                    latlngs.push([s.lat, s.lng]);
-                    bounds.push([s.lat, s.lng]);
-
-                    L.marker([s.lat, s.lng], {
-                        icon: L.divIcon({
-                            className: 'custom-div-icon',
-                            html: `<div class="w-9 h-9 ${colorObj.bg} rounded-full flex items-center justify-center text-white font-bold shadow-lg border-[3px] border-white text-sm transform hover:scale-110 transition-transform">${index + 1}</div>`,
-                            iconSize: [36, 36], iconAnchor: [18, 18]
-                        })
-                    }).addTo(mapLayerGroup).bindPopup(`
-                        <div class="font-prompt text-center p-1">
-                            <b class="text-sm">${s.fName} ${s.lName}</b><br>
-                            <span class="text-xs text-slate-500">${s.address.full}</span><br>
-                            <div class="mt-1.5 text-xs bg-slate-100 rounded px-2 py-1 font-semibold text-slate-700">บ้านหลังที่ ${index + 1} (วันที่ ${dayIndex + 1})</div>
-                        </div>
-                    `);
+                    latlngs.push([s.lat, s.lng]); bounds.push([s.lat, s.lng]);
+                    const pinBg = s.isVisited ? 'bg-emerald-500' : colorObj.bg;
+                    L.marker([s.lat, s.lng], { icon: L.divIcon({ className: 'custom-div-icon', html: `<div class="w-9 h-9 ${pinBg} rounded-full flex items-center justify-center text-white font-bold shadow-md border-[2px] border-white text-sm">${index + 1}</div>`, iconSize: [36, 36]}) }).addTo(mapLayerGroup).bindPopup(s.fName);
                 });
-
-                // วาดเส้นเชื่อม
-                L.polyline(latlngs, { color: colorObj.hex, weight: 4, opacity: 0.8, dashArray: '6, 6' }).addTo(mapLayerGroup);
+                L.polyline(latlngs, { color: colorObj.hex, weight: 3, opacity: 0.8, dashArray: '5, 5' }).addTo(mapLayerGroup);
             });
-
-            if(bounds.length > 0) map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+            if(bounds.length > 0) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 16 });
         }
 
-        function renderPlanList(startLat, startLng, visitedCount, totalFiltered) {
-            const container = document.getElementById('planListContainer');
-            container.innerHTML = '';
-            
-            let totalUnvisited = 0;
-            currentPlan.forEach(d => totalUnvisited += d.length);
-
-            // แจ้งเตือนสถิติการกรอง
-            const isFiltered = document.getElementById('filterProvince').value !== "";
-            let filterText = isFiltered ? `<span class="text-pink-600 font-bold bg-pink-50 px-2 rounded ml-2 text-xs">คัดกรองเหลือ ${totalFiltered} คน</span>` : '';
-
-            document.getElementById('planSummaryText').innerHTML = `
-                เป้าหมายรอเยี่ยม: <span class="font-bold text-slate-800">${totalUnvisited} หลัง</span> • 
-                เยี่ยมแล้ว: <span class="font-bold text-emerald-600">${visitedCount} หลัง</span> • 
-                ใช้เวลาเดินทาง: <span class="font-bold text-blue-600">${currentPlan.length} วัน</span> ${filterText}
-            `;
-
-            if(currentPlan.length === 0 && totalUnvisited === 0 && totalFiltered > 0) {
-                container.innerHTML = `
-                    <div class="text-center py-10 bg-emerald-50 rounded-2xl border border-emerald-200">
-                        <div class="w-16 h-16 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-3"><i class="ph ph-confetti"></i></div>
-                        <h3 class="text-xl font-bold text-emerald-700 mb-1">ยอดเยี่ยมมาก!</h3>
-                        <p class="text-emerald-600">อาจารย์เยี่ยมบ้านนักเรียนในเงื่อนไขนี้ครบทุกคนแล้วครับ</p>
-                    </div>`;
-            } else if (totalFiltered === 0) {
-                container.innerHTML = `<div class="text-center py-8 text-slate-500 bg-slate-50 rounded-xl border border-slate-200 font-medium">ไม่พบข้อมูลนักเรียนในพื้นที่ที่เลือก</div>`;
-            }
+        function renderPlanList(visitedStudents, totalFiltered) {
+            const container = document.getElementById('planListContainer'); container.innerHTML = '';
+            let planStudentIds = new Set();
 
             currentPlan.forEach((dayRoute, dayIndex) => {
                 const colorObj = dayColors[dayIndex % dayColors.length];
                 let html = `
-                    <div class="border border-slate-200 rounded-2xl overflow-hidden mb-6 bg-white shadow-sm hover:shadow-md transition-shadow">
-                        <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 flex flex-col md:flex-row md:justify-between md:items-center gap-3">
-                            <h3 class="font-bold text-slate-800 flex items-center gap-2.5 text-lg">
-                                <div class="w-4 h-4 ${colorObj.bg} rounded-full shadow-inner border border-white"></div> 
-                                วันที่ ${dayIndex + 1} <span class="text-slate-500 font-medium text-sm bg-white px-2 py-0.5 rounded-md border border-slate-200 shadow-sm">${dayRoute.length} หลัง</span>
-                            </h3>
-                            <button onclick="startDayNavigation(${dayIndex})" class="bg-slate-800 hover:bg-slate-900 text-white text-sm font-bold px-4 py-2 rounded-xl flex items-center justify-center gap-1.5 transition shadow-sm w-full md:w-auto">
-                                <i class="ph ph-navigation-arrow text-base"></i> เริ่มนำทางทั้งวัน (Multi-stop)
-                            </button>
+                    <div class="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm mb-4">
+                        <div class="bg-slate-50 px-4 py-3 border-b flex justify-between items-center">
+                            <h3 class="font-bold text-slate-800 flex items-center gap-2 text-sm"><div class="w-3 h-3 ${colorObj.bg} rounded-full"></div> วันที่ ${dayIndex + 1} <span class="font-normal text-slate-500">(${dayRoute.length} หลัง)</span></h3>
+                            <button onclick="startDayNavigation(${dayIndex})" class="bg-slate-800 text-white text-xs font-bold px-3 py-1.5 rounded-lg">นำทางทั้งวัน</button>
                         </div>
                         <div class="divide-y divide-slate-100">
                 `;
-
                 dayRoute.forEach((s, index) => {
+                    planStudentIds.add(s.id);
+                    const btnHtml = s.isVisited 
+                        ? `<button onclick="toggleVisit('${s.id}', this)" class="flex-1 bg-orange-50 text-orange-600 border border-orange-200 font-bold py-2 rounded-lg text-xs md:text-sm transition flex justify-center items-center gap-1"><i class="ph ph-arrow-u-up-left"></i> ยกเลิก</button>`
+                        : `<button onclick="toggleVisit('${s.id}', this)" class="flex-1 bg-emerald-50 text-emerald-600 border border-emerald-200 font-bold py-2 rounded-lg text-xs md:text-sm transition flex justify-center items-center gap-1"><i class="ph ph-check"></i> ติ๊กเยี่ยม</button>`;
+                    
                     html += `
-                        <div class="p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-5 hover:bg-slate-50 transition duration-200">
-                            <div class="flex items-start gap-4 flex-1">
-                                <div class="w-10 h-10 rounded-full ${colorObj.bg} text-white flex items-center justify-center font-bold text-lg flex-shrink-0 mt-0.5 shadow-md border-2 border-white">${index + 1}</div>
-                                <div>
-                                    <p class="font-bold text-slate-800 text-lg leading-tight mb-1">${s.fName} ${s.lName}</p>
-                                    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-600 mb-1.5">
-                                        <span class="bg-slate-100 px-2 py-0.5 rounded border border-slate-200 font-medium text-blue-600">เลขที่ ${s.stdNo}</span>
-                                        <span><i class="ph ph-phone text-slate-400"></i> ${s.phone}</span>
-                                    </div>
-                                    <p class="text-sm text-slate-500 flex items-start gap-1"><i class="ph ph-map-pin text-rose-400 mt-0.5"></i> ${s.address.full}</p>
-                                    <p class="text-xs font-medium text-amber-600 mt-2 flex items-center gap-1 bg-amber-50 w-max px-2 py-1 rounded-md border border-amber-100">
-                                        <i class="ph ph-arrows-left-right"></i> ห่างจาก${index === 0 ? 'โรงเรียน' : 'บ้านก่อนหน้า'} ~${s.distanceFromPrev.toFixed(1)} กม.
-                                    </p>
+                        <div class="p-3 md:p-4 ${s.isVisited ? 'bg-emerald-50/40 opacity-80' : ''}">
+                            <div class="flex items-start gap-3 mb-3">
+                                <div class="w-8 h-8 rounded-full ${s.isVisited ? 'bg-emerald-500' : colorObj.bg} text-white flex items-center justify-center font-bold text-sm shrink-0 mt-1">${index + 1}</div>
+                                <div class="flex-1 min-w-0 pr-6">
+                                    <p class="font-bold text-slate-800 text-sm md:text-base">${s.fName} ${s.lName}</p>
+                                    <p class="text-xs text-slate-500 mt-1">${s.address.full}</p>
+                                    <button onclick="openNearbyModal('${s.id}')" class="mt-2 text-[10px] md:text-xs bg-blue-50 text-blue-600 border border-blue-100 px-2 py-1 rounded-md font-medium flex items-center gap-1"><i class="ph ph-magnifying-glass-plus"></i> หาเพื่อนบ้าน</button>
                                 </div>
                             </div>
-                            <div class="flex flex-col sm:flex-row items-stretch gap-2 lg:w-auto w-full">
-                                <a href="https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}" target="_blank" class="flex-1 lg:flex-none text-center bg-white hover:bg-slate-50 text-slate-700 font-bold px-5 py-2.5 rounded-xl text-sm transition border border-slate-300 shadow-sm flex items-center justify-center gap-1.5">
-                                    <i class="ph ph-map-trifold text-lg text-blue-500"></i> แผนที่
-                                </a>
-                                <button onclick="toggleVisit('${s.id}')" class="flex-1 lg:flex-none bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition shadow-md shadow-emerald-500/20 flex items-center justify-center gap-1.5 border border-emerald-400">
-                                    <i class="ph ph-check-circle text-lg"></i> เยี่ยมแล้ว
-                                </button>
+                            <div class="flex gap-2 ml-11">
+                                <a href="https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}" target="_blank" class="flex-1 text-center bg-white text-slate-700 font-bold py-2 rounded-lg text-xs md:text-sm border border-slate-300">นำทาง 1 หลัง</a>
+                                ${btnHtml}
                             </div>
-                        </div>
-                    `;
+                        </div>`;
                 });
-
-                html += `</div></div>`;
-                container.innerHTML += html;
+                html += `</div></div>`; container.innerHTML += html;
             });
 
-            // จัดการรายชื่อที่ไม่สามารถนำทางได้
-            const unmappedContainer = document.getElementById('unmappedContainer');
-            const unmappedList = document.getElementById('unmappedList');
-            if(unmappedStudents.length > 0) {
-                unmappedContainer.classList.remove('hidden');
-                unmappedList.innerHTML = '';
-                unmappedStudents.forEach(s => {
-                    unmappedList.innerHTML += `
-                        <div class="bg-white border border-rose-100 p-4 rounded-xl flex justify-between items-center shadow-sm">
-                            <div>
-                                <p class="font-bold text-sm text-slate-800">${s.fName} ${s.lName}</p>
-                                <p class="text-xs text-slate-500 mt-0.5">เลขที่ ${s.stdNo}</p>
-                            </div>
-                            <button onclick="toggleVisit('${s.id}')" class="${s.isVisited ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border-slate-200'} border text-xs px-3 py-2 rounded-lg font-bold transition flex items-center gap-1">
-                                ${s.isVisited ? '<i class="ph ph-check font-bold"></i> เยี่ยมแล้ว' : 'ติ๊กเยี่ยมแล้ว'}
-                            </button>
-                        </div>
-                    `;
+            let pastVisited = visitedStudents.filter(s => !planStudentIds.has(s.id));
+            if (pastVisited.length > 0) {
+                let visitedHtml = `<div class="mt-6 border-t pt-4"><h3 class="font-bold text-emerald-600 mb-3 flex items-center gap-2"><i class="ph-fill ph-check-circle text-xl"></i> ประวัติเยี่ยมแล้ว</h3><div class="grid grid-cols-1 md:grid-cols-2 gap-2">`;
+                pastVisited.forEach(s => {
+                    visitedHtml += `
+                        <div class="bg-white border border-emerald-200 p-3 rounded-xl flex justify-between items-center shadow-sm">
+                            <div class="truncate pr-2"><p class="font-bold text-sm text-slate-700 truncate">${s.fName} ${s.lName}</p></div>
+                            <button onclick="toggleVisit('${s.id}', this)" class="bg-orange-50 text-orange-600 border border-orange-200 text-xs px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 shrink-0"><i class="ph ph-arrow-u-up-left"></i> ยกเลิก</button>
+                        </div>`;
                 });
-            } else {
-                unmappedContainer.classList.add('hidden');
+                visitedHtml += `</div></div>`;
+                container.innerHTML += visitedHtml;
             }
         }
 
+        // ระบบ Filter พื้นที่
+        function buildFilterOptions() {
+            const container = document.getElementById('filterOptionsContainer'); container.innerHTML = '';
+            let districtMap = {};
+            allStudents.forEach(s => {
+                const dist = s.address.district || 'รอแปลพิกัด'; const subd = s.address.subdistrict || 'รอพิกัด';
+                if(!districtMap[dist]) districtMap[dist] = new Set();
+                districtMap[dist].add(subd);
+            });
+
+            for (const [dist, subdSet] of Object.entries(districtMap)) {
+                let html = `<div class="mb-4 bg-white border border-slate-200 rounded-xl overflow-hidden"><div class="bg-slate-100 px-4 py-2 border-b"><label class="font-bold flex items-center gap-2"><input type="checkbox" class="cb-custom" value="${dist}" onchange="toggleDistrictCb(this)" ${selectedDistricts.includes(dist)?'checked':''}> อ.${dist}</label></div><div class="p-3 grid grid-cols-2 gap-2">`;
+                Array.from(subdSet).sort().forEach(subd => {
+                    html += `<label class="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" class="cb-custom subd-cb" data-dist="${dist}" value="${subd}" ${selectedSubdistricts.includes(subd)?'checked':''}> ต.${subd}</label>`;
+                });
+                html += `</div></div>`; container.innerHTML += html;
+            }
+        }
+        function toggleDistrictCb(cb) { document.querySelectorAll(`.subd-cb[data-dist="${cb.value}"]`).forEach(c => c.checked = cb.checked); }
+        function openFilterModal() { document.getElementById('filterModal').classList.remove('hidden'); setTimeout(() => document.getElementById('filterModal').classList.remove('opacity-0'), 10); }
+        function closeFilterModal() { document.getElementById('filterModal').classList.add('opacity-0'); setTimeout(() => document.getElementById('filterModal').classList.add('hidden'), 300); }
+        function clearFilters() { document.querySelectorAll('.cb-custom').forEach(cb => cb.checked = false); applyFilters(); }
+        function applyFilters() {
+            selectedDistricts = Array.from(document.querySelectorAll('input[onchange="toggleDistrictCb(this)"]:checked')).map(cb => cb.value);
+            selectedSubdistricts = Array.from(document.querySelectorAll('.subd-cb:checked')).map(cb => cb.value);
+            document.getElementById('filterSummaryText').innerText = (selectedDistricts.length || selectedSubdistricts.length) ? `กรอง ${selectedDistricts.length} อำเภอ` : "ยังไม่ได้เลือกพื้นที่ (แสดงทั้งหมด)";
+            closeFilterModal(); generatePlan();
+        }
+
+        // ระบบเพื่อนบ้าน
+        function openNearbyModal(studentId) {
+            const targetStudent = allStudents.find(s => s.id === studentId);
+            if(!targetStudent || !targetStudent.lat) return;
+
+            document.getElementById('nearbyTargetName').innerText = `${targetStudent.fName} ${targetStudent.lName}`;
+            let neighbors = allStudents.filter(s => s.id !== studentId && s.lat && s.lng);
+            neighbors.forEach(s => { s.tempDist = getDistance(targetStudent.lat, targetStudent.lng, s.lat, s.lng); });
+            neighbors.sort((a,b) => a.tempDist - b.tempDist);
+            let topNeighbors = neighbors.slice(0, 5);
+
+            const container = document.getElementById('nearbyListContainer'); container.innerHTML = '';
+            if(topNeighbors.length === 0) {
+                container.innerHTML = '<p class="text-center text-slate-500 my-4">ไม่พบเพื่อนบ้าน</p>';
+            } else {
+                topNeighbors.forEach((s, i) => {
+                    const statusText = s.isVisited ? '<span class="text-emerald-500 font-bold ml-1">(เยี่ยมแล้ว)</span>' : '';
+                    container.innerHTML += `
+                        <div class="bg-white p-3 rounded-xl border border-slate-200 mb-2 flex items-center gap-3 shadow-sm">
+                            <div class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0">${i+1}</div>
+                            <div class="min-w-0 flex-1">
+                                <p class="font-bold text-sm text-slate-800 truncate">${s.fName} ${statusText}</p>
+                                <p class="text-xs text-slate-500 truncate">${s.address.subdistrict}</p>
+                            </div>
+                            <div class="bg-amber-50 border border-amber-100 text-amber-700 font-bold px-2 py-1 rounded text-xs shrink-0">~${s.tempDist.toFixed(1)} กม.</div>
+                        </div>`;
+                });
+            }
+            document.getElementById('nearbyModal').classList.remove('hidden'); setTimeout(() => document.getElementById('nearbyModal').classList.remove('opacity-0'), 10);
+        }
+        function closeNearbyModal() { document.getElementById('nearbyModal').classList.add('opacity-0'); setTimeout(() => document.getElementById('nearbyModal').classList.add('hidden'), 300); }
+
+        // นำทาง & โหลดพิกัด
         function startDayNavigation(dayIndex) {
-            const coordsInput = document.getElementById('startCoords').value;
+            let startCoords = document.getElementById('startCoords').value;
             const route = currentPlan[dayIndex];
             if(!route || route.length === 0) return;
-
-            let url = `https://www.google.com/maps/dir/?api=1&origin=${coordsInput}`;
-            
-            if(route.length === 1) {
-                url += `&destination=${route[0].lat},${route[0].lng}`;
-            } else {
-                const dest = route[route.length - 1];
-                url += `&destination=${dest.lat},${dest.lng}`;
-                if(route.length > 1) {
-                    const waypoints = route.slice(0, -1).map(s => `${s.lat},${s.lng}`).join('|');
-                    url += `&waypoints=${waypoints}`;
-                }
+            let url = `https://www.google.com/maps/dir/?api=1&origin=${startCoords || "13.1126,99.9392"}`;
+            if(route.length === 1) { url += `&destination=${route[0].lat},${route[0].lng}`; } 
+            else {
+                url += `&destination=${route[route.length-1].lat},${route[route.length-1].lng}`;
+                if(route.length > 1) url += `&waypoints=${route.slice(0, -1).map(s => `${s.lat},${s.lng}`).join('|')}`;
             }
             window.open(url, '_blank');
         }
 
-        function toggleVisit(studentId) {
-            const currentStatus = visitedStatus[studentId] === true;
-            visitedStatus[studentId] = !currentStatus;
-            localStorage.setItem('visitedStudentsM52', JSON.stringify(visitedStatus));
-            
-            allStudents.forEach(s => { if(s.id === studentId) s.isVisited = visitedStatus[studentId]; });
-            unmappedStudents.forEach(s => { if(s.id === studentId) s.isVisited = visitedStatus[studentId]; });
-
-            updateStats();
-            generatePlan();
-        }
-
-        function useSchoolCoords() {
-            document.getElementById('startCoords').value = "13.1126, 99.9392";
-            generatePlan();
-        }
-
+        function useSchoolCoords() { document.getElementById('startCoords').value = "13.1126, 99.9392"; generatePlan(); }
         function useCurrentCoords() {
             if (navigator.geolocation) {
-                const btn = document.querySelector('button[onclick="useCurrentCoords()"]');
-                const originalText = btn.innerHTML;
-                btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> รอพิกัด...';
-                btn.disabled = true;
-                
+                document.getElementById('startCoords').value = "กำลังหา...";
                 navigator.geolocation.getCurrentPosition(
-                    pos => {
-                        document.getElementById('startCoords').value = `${pos.coords.latitude}, ${pos.coords.longitude}`;
-                        btn.innerHTML = originalText;
-                        btn.disabled = false;
-                        generatePlan();
-                    },
-                    err => {
-                        showModal("ผิดพลาด", "ไม่สามารถดึงตำแหน่งปัจจุบันได้ กรุณาตรวจสอบว่าได้เปิด GPS และอนุญาตสิทธิ์ให้กับเบราว์เซอร์แล้ว", "error");
-                        btn.innerHTML = originalText;
-                        btn.disabled = false;
-                    },
-                    { enableHighAccuracy: true, timeout: 5000 }
+                    pos => { document.getElementById('startCoords').value = `${pos.coords.latitude}, ${pos.coords.longitude}`; generatePlan(); },
+                    err => { alert("ไม่สามารถดึงตำแหน่งปัจจุบันได้"); document.getElementById('startCoords').value = "13.1126, 99.9392"; }
                 );
-            } else {
-                showModal("ไม่รองรับ", "เบราว์เซอร์ของคุณไม่รองรับระบบระบุตำแหน่งพิกัด GPS", "error");
             }
         }
 
-        window.onload = () => {
-            initMap();
-            fetchDirectFromSheet();
-        };
+        function showToast(msg, isSuccess = true) {
+            const toast = document.getElementById('toast');
+            toast.innerHTML = isSuccess ? `<i class="ph-fill ph-check-circle text-emerald-400 text-lg"></i> <span>${msg}</span>` : `<i class="ph-fill ph-arrow-u-up-left text-orange-400 text-lg"></i> <span>${msg}</span>`;
+            toast.classList.remove('opacity-0'); setTimeout(() => toast.classList.add('opacity-0'), 2500);
+        }
+
+        window.onload = () => { loadStoredData(); initMap(); fetchDirectFromSheet(); };
     </script>
 </body>
 </html>
