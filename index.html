@@ -141,7 +141,7 @@
 
         let map, mapLayerGroup;
         let allStudents = [];
-        let addressCache = {}; // ไม่ใช้ localStorage บน Google Sites, แต่ใช้ได้บน GitHub
+        let addressCache = {};
         let currentPlan = [];
         let selectedDistricts = [], selectedSubdistricts = [];
 
@@ -188,10 +188,11 @@
             window[cbName] = function(data) {
                 clearTimeout(timeoutId);
                 delete window[cbName];
-                if (data.status === 'success') {
+                // เช็ค data.success ตามโค้ด Code.gs อันใหม่ของอาจารย์
+                if (data.success) {
                     processData(data.data);
                 } else {
-                    document.getElementById('loader').innerHTML = `<p class="text-rose-600 font-bold p-4 text-center">เกิดข้อผิดพลาดจากเซิร์ฟเวอร์</p>`;
+                    document.getElementById('loader').innerHTML = `<p class="text-rose-600 font-bold p-4 text-center">เซิร์ฟเวอร์แจ้งเตือน: ${data.error || 'ข้อผิดพลาดจากเซิร์ฟเวอร์'}</p>`;
                 }
             };
 
@@ -204,33 +205,29 @@
             document.head.appendChild(script);
         }
 
-        function processData(rows) {
+        function processData(records) {
             allStudents = [];
-            for (let i = 1; i < rows.length; i++) {
-                const row = rows[i];
-                if (!row) continue;
+            // วนลูปอ่านข้อมูล Object ที่ได้จาก Code.gs
+            for (let i = 0; i < records.length; i++) {
+                const rec = records[i];
                 
-                const fName = row[2] ? row[2].toString().trim() : '';
-                if (!fName) continue; 
+                // นำข้อมูลจาก Object มาเก็บในตัวแปร
+                const studentId = rec.rowIndex; // ใช้ rowIndex เป็น ID หลักเลย เพราะอัปเดตง่าย
+                const stdNo = rec.id || '-';
+                const fName = rec.name || ''; // name คือ fname + lname เรียบร้อยแล้ว
+                const lName = ''; 
+                const phone = rec.phone || '-';
+                const lat = rec.lat;
+                const lng = rec.lng;
+                const isVisited = rec.visited === true;
 
-                const stdNo = row[1] ? row[1].toString() : '-';
-                const lName = row[3] ? row[3].toString().trim() : '';
-                const phone = row[5] ? row[5].toString() : '-';
-                const lat = row[6] ? parseFloat(row[6]) : null;
-                const lng = row[7] ? parseFloat(row[7]) : null;
-                
-                // คอลัมน์ L (Index 11) คือสถานะเยี่ยมบ้าน ที่ถูกบันทึกไว้ใน Sheet
-                const statusFromSheet = row[11] ? row[11].toString().trim() : '';
-                const isVisited = (statusFromSheet === 'เยี่ยมแล้ว');
-
-                const studentId = `${stdNo}_${fName}`;
                 let address = { province: '', district: '', subdistrict: '', full: 'ค้นหาพิกัด...' };
                 
                 const coordKey = `${lat},${lng}`;
                 if(lat && lng && addressCache[coordKey]) address = addressCache[coordKey];
 
                 if (lat && !isNaN(lat)) {
-                    allStudents.push({ id: studentId, stdNo, fName, lName, phone, lat, lng, isVisited, address, coordKey });
+                    allStudents.push({ id: studentId, stdNo, fName, lName, phone, lat, lng, isVisited, address, coordKey, rowIndex: rec.rowIndex });
                 }
             }
 
@@ -266,17 +263,20 @@
             window[cbName] = function(data) {
                 clearTimeout(timeoutId);
                 delete window[cbName];
-                if(data.status === 'success') {
+                // เช็ค data.success ตามระบบใหม่
+                if(data.success) {
                     updateStats();
                     refreshUI(); // <--- รีเฟรชแค่ UI โดยไม่จัดเส้นทางใหม่
                     showToast(newStatus ? "บันทึกลง Sheet เรียบร้อย" : "ยกเลิกแล้ว", newStatus);
                 } else {
                     revert();
+                    alert("เซิร์ฟเวอร์แจ้งเตือน: " + (data.error || 'Unknown Error'));
                 }
             };
 
             const script = document.createElement('script');
-            script.src = `${API_URL}?action=update&id=${encodeURIComponent(studentId)}&status=${newStatus}&callback=${cbName}&t=${Date.now()}`;
+            // อัปเดตพารามิเตอร์ส่งไปให้ตรงกับ Code.gs คือ action=update&row=...&visited=...
+            script.src = `${API_URL}?action=update&row=${encodeURIComponent(student.rowIndex)}&visited=${newStatus}&callback=${cbName}&t=${Date.now()}`;
             script.onerror = () => {
                 clearTimeout(timeoutId);
                 revert();
