@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบวางแผนเยี่ยมบ้าน ม.5/2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Prompt', sans-serif; background-color: #f4f7f6; }
+        #map { height: 500px; z-index: 10; border-radius: 1rem; border: 4px solid white; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); }
+        .custom-div-icon { background: transparent; border: none; }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="pb-12 text-slate-800">
+
+    <div class="bg-gradient-to-r from-blue-800 to-blue-600 text-white pt-8 pb-16 px-4 shadow-lg">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6 text-center md:text-left">
+            <div>
+                <h1 class="text-3xl md:text-4xl font-bold flex items-center justify-center md:justify-start gap-3">
+                    <i class="ph ph-map-trifold text-4xl text-blue-200 drop-shadow-md"></i>
+                    ระบบจัดเส้นทางเยี่ยมบ้านอัจฉริยะ
+                </h1>
+                <p class="text-blue-100 mt-2 text-base md:text-lg opacity-90">ม.5/2 โรงเรียนพรหมานุสรณ์จังหวัดเพชรบุรี</p>
+            </div>
+            <div class="flex flex-wrap justify-center gap-3 md:gap-4">
+                <div class="bg-white/10 rounded-2xl px-6 py-4 border border-white/20 text-center backdrop-blur-md shadow-inner">
+                    <p class="text-blue-100 text-sm font-medium">นักเรียนในระบบ</p>
+                    <p class="text-3xl font-bold mt-1" id="statTotal">0</p>
+                </div>
+                <div class="bg-emerald-500/20 rounded-2xl px-6 py-4 border border-emerald-400/30 text-center backdrop-blur-md shadow-inner">
+                    <p class="text-emerald-100 text-sm font-medium">เยี่ยมแล้ว</p>
+                    <p class="text-3xl font-bold text-emerald-300 mt-1" id="statVisited">0</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 -mt-10 relative z-20">
+        
+        <!-- Controls & Filters Panel -->
+        <div class="bg-white rounded-3xl shadow-xl p-6 mb-8 border border-slate-100">
+            <h2 class="text-lg font-bold text-slate-700 mb-4 flex items-center gap-2 border-b pb-3">
+                <i class="ph ph-faders text-blue-500 text-xl"></i> เครื่องมือจัดเส้นทางและตัวกรอง
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-5 items-end">
+                
+                <!-- Filters -->
+                <div class="md:col-span-12 grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1.5">จังหวัด <span id="geoStatus" class="text-blue-500 font-normal text-xs ml-1"></span></label>
+                        <select id="filterProvince" onchange="updateFilterDropdowns('province')" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm appearance-none bg-slate-50 cursor-pointer transition">
+                            <option value="">-- ทุกจังหวัด --</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1.5">อำเภอ</label>
+                        <select id="filterDistrict" onchange="updateFilterDropdowns('district')" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm appearance-none bg-slate-50 cursor-pointer transition">
+                            <option value="">-- ทุกอำเภอ --</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1.5">ตำบล</label>
+                        <select id="filterSubdistrict" onchange="generatePlan()" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm appearance-none bg-slate-50 cursor-pointer transition">
+                            <option value="">-- ทุกตำบล --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Routing Config -->
+                <div class="md:col-span-3">
+                    <label class="block text-xs font-semibold text-slate-500 mb-1.5">จำนวนบ้านที่ต้องการไป/วัน</label>
+                    <input type="number" id="perDayLimit" value="5" min="1" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500 text-lg font-bold text-center text-slate-700 bg-slate-50">
+                </div>
+                
+                <div class="md:col-span-6">
+                    <label class="block text-xs font-semibold text-slate-500 mb-1.5">พิกัดจุดเริ่มต้น (ละติจูด, ลองจิจูด)</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="startCoords" value="13.1126, 99.9392" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 outline-none focus:border-blue-500 text-sm font-mono text-slate-600 bg-slate-50">
+                        <button onclick="useSchoolCoords()" class="whitespace-nowrap bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-xl text-sm font-semibold transition flex items-center gap-1.5 border border-slate-200 shadow-sm" title="พิกัดโรงเรียน">
+                            🏫 รร.
+                        </button>
+                        <button onclick="useCurrentCoords()" class="whitespace-nowrap bg-rose-50 hover:bg-rose-100 text-rose-600 px-4 py-2.5 rounded-xl text-sm font-semibold transition flex items-center gap-1.5 border border-rose-200 shadow-sm">
+                            📍 ปัจจุบัน
+                        </button>
+                    </div>
+                </div>
+
+                <div class="md:col-span-3">
+                    <button onclick="generatePlan()" class="w-full bg-gradient-to-r from-pink-600 to-rose-500 hover:from-pink-700 hover:to-rose-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-pink-500/30 transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2 text-base border border-pink-500/50">
+                        <i class="ph ph-magic-wand text-xl"></i> ประมวลผลเส้นทาง
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Map Container -->
+        <div class="relative mb-8">
+            <div id="map" class="w-full bg-slate-200"></div>
+            
+            <div id="loader" class="absolute inset-0 bg-white/95 z-50 flex flex-col items-center justify-center rounded-2xl border-4 border-white backdrop-blur-sm">
+                <i class="ph ph-spinner-gap animate-spin text-5xl text-blue-600 mb-4"></i>
+                <p class="text-slate-700 font-semibold text-lg" id="loaderText">กำลังเชื่อมต่อฐานข้อมูล Google Sheet...</p>
+            </div>
+        </div>
+
+        <!-- Plan Summary & List -->
+        <div class="bg-white rounded-3xl shadow-lg border border-slate-100 p-6 md:p-8">
+            <div class="border-l-4 border-pink-500 pl-5 mb-8">
+                <h2 class="text-2xl font-bold text-slate-800">แผนการเยี่ยมบ้านรายวัน</h2>
+                <p class="text-sm text-slate-500 mt-1.5" id="planSummaryText">กำลังเตรียมข้อมูลเส้นทาง...</p>
+                <div class="flex flex-wrap items-center gap-4 mt-3 text-xs">
+                    <span class="flex items-center gap-1.5 text-emerald-600 font-semibold bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-100"><div class="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-sm"></div> เยี่ยมแล้ว</span>
+                    <span class="flex items-center gap-1.5 text-blue-600 font-semibold bg-blue-50 px-2.5 py-1 rounded-md border border-blue-100"><div class="w-2.5 h-2.5 bg-blue-500 rounded-full shadow-sm"></div> วันที่ 1</span>
+                    <span class="flex items-center gap-1.5 text-pink-600 font-semibold bg-pink-50 px-2.5 py-1 rounded-md border border-pink-100"><div class="w-2.5 h-2.5 bg-pink-500 rounded-full shadow-sm"></div> วันที่ 2</span>
+                </div>
+            </div>
+
+            <div id="planListContainer" class="space-y-6"></div>
+            
+            <div id="unmappedContainer" class="mt-10 hidden">
+                <div class="bg-rose-50 border border-rose-200 rounded-2xl p-5">
+                    <h3 class="font-bold text-rose-600 mb-4 flex items-center gap-2"><i class="ph ph-warning-circle text-2xl"></i> นักเรียนที่ไม่มีพิกัด (ไม่สามารถรวมในเส้นทางได้)</h3>
+                    <div id="unmappedList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Custom Modal Popup -->
+    <div id="customModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 transform scale-95 transition-transform duration-300" id="modalContent">
+            <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-blue-100 mb-6" id="modalIconContainer">
+                <i class="ph ph-info text-3xl text-blue-600" id="modalIcon"></i>
+            </div>
+            <h3 class="text-xl font-bold text-center text-slate-800 mb-2" id="modalTitle">แจ้งเตือน</h3>
+            <p class="text-center text-slate-500 mb-6 text-sm" id="modalMessage">ข้อความ</p>
+            <button onclick="closeModal()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 px-4 rounded-xl transition duration-200 shadow-md">
+                ตกลงรับทราบ
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const SHEET_ID = '1LH1PGlKd6RQSfDb_10OPZTuaZSN2hUv1mi5mUR64QsI';
+
+        let map;
+        let mapLayerGroup;
+        let allStudents = [];
+        let visitedStatus = JSON.parse(localStorage.getItem('visitedStudentsM52')) || {};
+        let addressCache = JSON.parse(localStorage.getItem('addressCacheM52')) || {}; // Cache ป้องกันการโหลดซ้ำซ้อน
+        let currentPlan = [];
+        let unmappedStudents = [];
+
+        const dayColors = [
+            { bg: 'bg-blue-500', border: 'border-blue-600', hex: '#3b82f6' },
+            { bg: 'bg-pink-500', border: 'border-pink-600', hex: '#ec4899' },
+            { bg: 'bg-orange-500', border: 'border-orange-600', hex: '#f97316' },
+            { bg: 'bg-purple-500', border: 'border-purple-600', hex: '#a855f7' },
+            { bg: 'bg-emerald-500', border: 'border-emerald-600', hex: '#10b981' },
+            { bg: 'bg-indigo-500', border: 'border-indigo-600', hex: '#6366f1' }
+        ];
+
+        // --- UI Functions ---
+        function showModal(title, message, type = 'info') {
+            const modal = document.getElementById('customModal');
+            const content = document.getElementById('modalContent');
+            const iconContainer = document.getElementById('modalIconContainer');
+            const icon = document.getElementById('modalIcon');
+            
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalMessage').innerText = message;
+
+            if(type === 'error') {
+                iconContainer.className = 'mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-rose-100 mb-6';
+                icon.className = 'ph ph-warning-circle text-4xl text-rose-600';
+            } else if (type === 'success') {
+                iconContainer.className = 'mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-emerald-100 mb-6';
+                icon.className = 'ph ph-check-circle text-4xl text-emerald-600';
+            } else {
+                iconContainer.className = 'mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-blue-100 mb-6';
+                icon.className = 'ph ph-info text-4xl text-blue-600';
+            }
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.remove('scale-95');
+                content.classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('customModal');
+            const content = document.getElementById('modalContent');
+            modal.classList.add('opacity-0');
+            content.classList.remove('scale-100');
+            content.classList.add('scale-95');
+            setTimeout(() => { modal.classList.add('hidden'); }, 300);
+        }
+
+        // --- Core Setup ---
+        function initMap() {
+            map = L.map('map').setView([13.1126, 99.9392], 11);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+            }).addTo(map);
+            mapLayerGroup = L.layerGroup().addTo(map);
+        }
+
+        // 🟢 กลับมาใช้วิธี JSONP (Script Injection) เพื่อทะลุบล็อก CORS ทันที
+        function fetchDirectFromSheet() {
+            const loaderText = document.getElementById('loaderText');
+            loaderText.innerText = "กำลังดึงข้อมูลทะลุบล็อก (JSONP)...";
+
+            // ตั้งเวลา Timeout
+            const timeoutId = setTimeout(() => {
+                showFetchError("การเชื่อมต่อหมดเวลา (Timeout) โปรดตรวจสอบอินเทอร์เน็ต");
+            }, 10000);
+
+            window.googleSheetCallback = function(data) {
+                clearTimeout(timeoutId);
+                if (data.status === 'error') {
+                    showFetchError("Google แจ้งเตือน: " + data.errors[0].message);
+                    return;
+                }
+                if (!data.table || !data.table.rows) {
+                    showFetchError("ไม่พบข้อมูลในตาราง");
+                    return;
+                }
+                processData(data.table.rows);
+            };
+
+            const script = document.createElement('script');
+            script.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=responseHandler:googleSheetCallback`;
+            script.onerror = () => {
+                clearTimeout(timeoutId);
+                showFetchError("เบราว์เซอร์บล็อกสคริปต์ (CORS) หรือไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ Google ได้");
+            };
+            document.body.appendChild(script);
+        }
+
+        // แสดงข้อความ Error ถ้าดึงไม่ได้
+        function showFetchError(msg) {
+            document.getElementById('loader').innerHTML = `
+                <i class="ph ph-warning-circle text-6xl text-rose-500 mb-4"></i>
+                <div class="text-rose-600 text-xl font-bold mb-2">เข้าถึงข้อมูลไม่ได้</div>
+                <div class="text-slate-600 text-sm max-w-md text-center bg-rose-50 p-4 border border-rose-200 rounded-xl">
+                    <b>สาเหตุ:</b> ${msg}<br><br>
+                    <b>คำแนะนำ:</b><br>
+                    หากอาจารย์แชร์ "ทุกคนที่มีลิงก์" แล้ว อาจเกิดจากเบราว์เซอร์เคร่งครัดเรื่องความปลอดภัย ให้ลองรีเฟรชหน้าใหม่อีกครั้งครับ
+                </div>
+            `;
+        }
+
+        function processData(rows) {
+            allStudents = [];
+            unmappedStudents = [];
+            
+            for (let i = 1; i < rows.length; i++) {
+                const row = rows[i].c;
+                if (!row) continue;
+                
+                const fName = row[2] && row[2].v ? row[2].v.toString().trim() : '';
+                if (!fName) continue; 
+
+                const stdNo = row[1] && row[1].v ? row[1].v.toString() : '-';
+                const lName = row[3] && row[3].v ? row[3].v.toString().trim() : '';
+                const phone = row[5] && row[5].v ? row[5].v.toString() : '-';
+                
+                const lat = row[6] && row[6].v ? parseFloat(row[6].v) : null;
+                const lng = row[7] && row[7].v ? parseFloat(row[7].v) : null;
+
+                const studentId = `${stdNo}_${fName}`;
+                const isVisited = visitedStatus[studentId] === true;
+
+                // ค่าพื้นฐานของที่อยู่
+                let address = { province: '', district: '', subdistrict: '', full: 'กำลังค้นหาพิกัด...' };
+                
+                // ถ้าระบบเคยแปลพิกัดนี้แล้ว ให้ดึงจาก Cache
+                const coordKey = `${lat},${lng}`;
+                if(lat && lng && addressCache[coordKey]) {
+                    address = addressCache[coordKey];
+                }
+
+                const studentObj = { id: studentId, stdNo, fName, lName, phone, lat, lng, isVisited, address, coordKey };
+
+                if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
+                    allStudents.push(studentObj);
+                } else {
+                    unmappedStudents.push(studentObj);
+                }
+            }
+
+            document.getElementById('loader').style.display = 'none';
+            updateStats();
+            updateFilterDropdowns('init');
+            generatePlan(); 
+            
+            // เริ่มกระบวนการ Reverse Geocoding เบื้องหลัง
+            startBackgroundGeocoding();
+        }
+
+        // ฟังก์ชันแปลพิกัดเป็นที่อยู่ (ทำงานเบื้องหลัง ป้องกันเว็บค้าง)
+        async function startBackgroundGeocoding() {
+            let needsUpdate = false;
+            let statusEl = document.getElementById('geoStatus');
+            statusEl.innerText = "(กำลังประมวลผลที่อยู่...)";
+
+            for (let i = 0; i < allStudents.length; i++) {
+                let s = allStudents[i];
+                if (s.address.province === '' && s.lat && s.lng) {
+                    try {
+                        // OpenStreetMap Nominatim API (Rate limit 1 req/sec)
+                        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${s.lat}&lon=${s.lng}&accept-language=th`);
+                        const data = await res.json();
+                        
+                        if(data && data.address) {
+                            let a = data.address;
+                            // ทำความสะอาดชื่อให้อ่านง่าย
+                            s.address.subdistrict = (a.suburb || a.village || a.quarter || a.hamlet || a.municipality || '').replace('ตำบล', '').replace('ต.', '').trim();
+                            s.address.district = (a.county || a.city_district || a.town || a.city || '').replace('อำเภอ', '').replace('อ.', '').replace('เขต', '').trim();
+                            s.address.province = (a.state || a.province || '').replace('จังหวัด', '').replace('จ.', '').trim();
+                            
+                            s.address.full = `ต.${s.address.subdistrict || '-'} อ.${s.address.district || '-'} จ.${s.address.province || '-'}`;
+                            
+                            // บันทึกเข้า Cache
+                            addressCache[s.coordKey] = s.address;
+                            needsUpdate = true;
+                        }
+                    } catch(e) {
+                        console.error("Geocoding failed for", s.fName, e);
+                        s.address.full = "แปลพิกัดไม่สำเร็จ";
+                    }
+                    // หน่วงเวลา 1 วินาทีเพื่อเคารพกฎของ API ฟรี ป้องกันการโดนแบน IP
+                    await new Promise(r => setTimeout(r, 1100));
+                }
+            }
+
+            if(needsUpdate) {
+                localStorage.setItem('addressCacheM52', JSON.stringify(addressCache));
+                updateFilterDropdowns('init'); // อัปเดตตัวกรองใหม่ให้มีชื่อสถานที่ครบ
+                generatePlan(); // วาดหน้าจอใหม่
+            }
+            statusEl.innerText = "";
+        }
+
+        // อัปเดต Dropdown ตามสถานที่ที่มีอยู่จริง
+        function updateFilterDropdowns(triggerSource) {
+            const pvSelect = document.getElementById('filterProvince');
+            const dtSelect = document.getElementById('filterDistrict');
+            const sdSelect = document.getElementById('filterSubdistrict');
+
+            const currentPv = pvSelect.value;
+            const currentDt = dtSelect.value;
+            const currentSd = sdSelect.value;
+
+            // กรองหา Province ที่มี
+            let provinces = [...new Set(allStudents.map(s => s.address.province).filter(Boolean))].sort();
+            
+            if(triggerSource === 'init') {
+                pvSelect.innerHTML = '<option value="">-- ทุกจังหวัด --</option>';
+                provinces.forEach(p => pvSelect.innerHTML += `<option value="${p}">${p}</option>`);
+                pvSelect.value = currentPv;
+            }
+
+            // กรองหา District โดยยึด Province ที่เลือก
+            let districts = [...new Set(allStudents
+                .filter(s => currentPv === "" || s.address.province === currentPv)
+                .map(s => s.address.district).filter(Boolean))].sort();
+
+            if(triggerSource === 'init' || triggerSource === 'province') {
+                dtSelect.innerHTML = '<option value="">-- ทุกอำเภอ --</option>';
+                districts.forEach(d => dtSelect.innerHTML += `<option value="${d}">${d}</option>`);
+                dtSelect.value = triggerSource === 'province' ? '' : currentDt;
+                if(triggerSource === 'province') sdSelect.innerHTML = '<option value="">-- ทุกตำบล --</option>';
+            }
+
+            // กรองหา Subdistrict โดยยึด District ที่เลือก
+            let subdistricts = [...new Set(allStudents
+                .filter(s => currentPv === "" || s.address.province === currentPv)
+                .filter(s => dtSelect.value === "" || s.address.district === dtSelect.value)
+                .map(s => s.address.subdistrict).filter(Boolean))].sort();
+
+            if(triggerSource === 'init' || triggerSource === 'province' || triggerSource === 'district') {
+                sdSelect.innerHTML = '<option value="">-- ทุกตำบล --</option>';
+                subdistricts.forEach(sd => sdSelect.innerHTML += `<option value="${sd}">${sd}</option>`);
+                sdSelect.value = (triggerSource === 'province' || triggerSource === 'district') ? '' : currentSd;
+            }
+
+            if(triggerSource !== 'init') {
+                generatePlan();
+            }
+        }
+
+        function updateStats() {
+            const total = allStudents.length + unmappedStudents.length;
+            const visited = allStudents.filter(s => s.isVisited).length + unmappedStudents.filter(s => s.isVisited).length;
+            document.getElementById('statTotal').innerText = total;
+            document.getElementById('statVisited').innerText = visited;
+        }
+
+        function getDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; 
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        }
+
+        function generatePlan() {
+            mapLayerGroup.clearLayers();
+            currentPlan = [];
+            
+            const coordsInput = document.getElementById('startCoords').value.split(',');
+            const startLat = parseFloat(coordsInput[0]);
+            const startLng = parseFloat(coordsInput[1]);
+            const perDayLimit = parseInt(document.getElementById('perDayLimit').value) || 5;
+
+            if(isNaN(startLat) || isNaN(startLng)) {
+                showModal("พิกัดไม่ถูกต้อง", "กรุณากรอกพิกัดเป็นตัวเลข เช่น 13.1126, 99.9392", "error");
+                return;
+            }
+
+            // อ่านค่าจากฟิลเตอร์
+            const fProv = document.getElementById('filterProvince').value;
+            const fDist = document.getElementById('filterDistrict').value;
+            const fSubd = document.getElementById('filterSubdistrict').value;
+
+            // คัดกรองนักเรียนตามฟิลเตอร์ที่เลือก
+            let filteredStudents = allStudents.filter(s => {
+                if (fProv && s.address.province !== fProv) return false;
+                if (fDist && s.address.district !== fDist) return false;
+                if (fSubd && s.address.subdistrict !== fSubd) return false;
+                return true;
+            });
+
+            let pendingStudents = filteredStudents.filter(s => !s.isVisited);
+            let visitedStudents = filteredStudents.filter(s => s.isVisited);
+
+            let currentLoc = { lat: startLat, lng: startLng };
+            let currentDayRoute = [];
+
+            // อัลกอริทึม Nearest Neighbor จัดเรียงเส้นทางใกล้สุด
+            while (pendingStudents.length > 0) {
+                let nearestIdx = 0;
+                let minDistance = Infinity;
+
+                for (let i = 0; i < pendingStudents.length; i++) {
+                    const d = getDistance(currentLoc.lat, currentLoc.lng, pendingStudents[i].lat, pendingStudents[i].lng);
+                    if (d < minDistance) {
+                        minDistance = d;
+                        nearestIdx = i;
+                    }
+                }
+
+                let nextStudent = pendingStudents.splice(nearestIdx, 1)[0];
+                nextStudent.distanceFromPrev = minDistance;
+                currentDayRoute.push(nextStudent);
+                
+                currentLoc = { lat: nextStudent.lat, lng: nextStudent.lng };
+
+                if (currentDayRoute.length >= perDayLimit || pendingStudents.length === 0) {
+                    currentPlan.push(currentDayRoute);
+                    currentDayRoute = [];
+                    currentLoc = { lat: startLat, lng: startLng }; // วันใหม่ เริ่มจากจุดเริ่มต้นใหม่
+                }
+            }
+
+            drawMap(startLat, startLng, visitedStudents);
+            renderPlanList(startLat, startLng, visitedStudents.length, filteredStudents.length);
+        }
+
+        function drawMap(startLat, startLng, visitedStudents) {
+            let bounds = [[startLat, startLng]];
+
+            // จุดเริ่มต้น
+            L.marker([startLat, startLng], {
+                icon: L.divIcon({
+                    className: 'custom-div-icon',
+                    html: `<div class="w-11 h-11 bg-slate-900 rounded-full flex items-center justify-center text-white text-2xl shadow-xl border-4 border-white z-50 relative"><i class="ph ph-house-line"></i></div>`,
+                    iconSize: [44, 44], iconAnchor: [22, 22]
+                })
+            }).addTo(mapLayerGroup).bindPopup('<b class="text-base font-prompt">จุดเริ่มต้นการนำทาง</b>');
+
+            // หมุดสีเขียว (เยี่ยมแล้ว)
+            visitedStudents.forEach(s => {
+                L.marker([s.lat, s.lng], {
+                    icon: L.divIcon({
+                        className: 'custom-div-icon',
+                        html: `<div class="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center text-white shadow-md border-2 border-white opacity-80"><i class="ph ph-check font-bold"></i></div>`,
+                        iconSize: [32, 32], iconAnchor: [16, 16]
+                    })
+                }).addTo(mapLayerGroup).bindPopup(`
+                    <div class="font-prompt text-center p-1">
+                        <b>${s.fName} ${s.lName}</b><br>
+                        <span class="text-xs text-slate-500">${s.address.full}</span><br>
+                        <span class="text-emerald-600 font-semibold text-xs mt-1 block bg-emerald-50 rounded py-0.5">✅ เยี่ยมเรียบร้อย</span>
+                    </div>
+                `);
+                bounds.push([s.lat, s.lng]);
+            });
+
+            // หมุดเส้นทางแต่ละวัน
+            currentPlan.forEach((dayRoute, dayIndex) => {
+                const colorObj = dayColors[dayIndex % dayColors.length];
+                let latlngs = [[startLat, startLng]];
+
+                dayRoute.forEach((s, index) => {
+                    latlngs.push([s.lat, s.lng]);
+                    bounds.push([s.lat, s.lng]);
+
+                    L.marker([s.lat, s.lng], {
+                        icon: L.divIcon({
+                            className: 'custom-div-icon',
+                            html: `<div class="w-9 h-9 ${colorObj.bg} rounded-full flex items-center justify-center text-white font-bold shadow-lg border-[3px] border-white text-sm transform hover:scale-110 transition-transform">${index + 1}</div>`,
+                            iconSize: [36, 36], iconAnchor: [18, 18]
+                        })
+                    }).addTo(mapLayerGroup).bindPopup(`
+                        <div class="font-prompt text-center p-1">
+                            <b class="text-sm">${s.fName} ${s.lName}</b><br>
+                            <span class="text-xs text-slate-500">${s.address.full}</span><br>
+                            <div class="mt-1.5 text-xs bg-slate-100 rounded px-2 py-1 font-semibold text-slate-700">บ้านหลังที่ ${index + 1} (วันที่ ${dayIndex + 1})</div>
+                        </div>
+                    `);
+                });
+
+                // วาดเส้นเชื่อม
+                L.polyline(latlngs, { color: colorObj.hex, weight: 4, opacity: 0.8, dashArray: '6, 6' }).addTo(mapLayerGroup);
+            });
+
+            if(bounds.length > 0) map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+        }
+
+        function renderPlanList(startLat, startLng, visitedCount, totalFiltered) {
+            const container = document.getElementById('planListContainer');
+            container.innerHTML = '';
+            
+            let totalUnvisited = 0;
+            currentPlan.forEach(d => totalUnvisited += d.length);
+
+            // แจ้งเตือนสถิติการกรอง
+            const isFiltered = document.getElementById('filterProvince').value !== "";
+            let filterText = isFiltered ? `<span class="text-pink-600 font-bold bg-pink-50 px-2 rounded ml-2 text-xs">คัดกรองเหลือ ${totalFiltered} คน</span>` : '';
+
+            document.getElementById('planSummaryText').innerHTML = `
+                เป้าหมายรอเยี่ยม: <span class="font-bold text-slate-800">${totalUnvisited} หลัง</span> • 
+                เยี่ยมแล้ว: <span class="font-bold text-emerald-600">${visitedCount} หลัง</span> • 
+                ใช้เวลาเดินทาง: <span class="font-bold text-blue-600">${currentPlan.length} วัน</span> ${filterText}
+            `;
+
+            if(currentPlan.length === 0 && totalUnvisited === 0 && totalFiltered > 0) {
+                container.innerHTML = `
+                    <div class="text-center py-10 bg-emerald-50 rounded-2xl border border-emerald-200">
+                        <div class="w-16 h-16 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-3"><i class="ph ph-confetti"></i></div>
+                        <h3 class="text-xl font-bold text-emerald-700 mb-1">ยอดเยี่ยมมาก!</h3>
+                        <p class="text-emerald-600">อาจารย์เยี่ยมบ้านนักเรียนในเงื่อนไขนี้ครบทุกคนแล้วครับ</p>
+                    </div>`;
+            } else if (totalFiltered === 0) {
+                container.innerHTML = `<div class="text-center py-8 text-slate-500 bg-slate-50 rounded-xl border border-slate-200 font-medium">ไม่พบข้อมูลนักเรียนในพื้นที่ที่เลือก</div>`;
+            }
+
+            currentPlan.forEach((dayRoute, dayIndex) => {
+                const colorObj = dayColors[dayIndex % dayColors.length];
+                let html = `
+                    <div class="border border-slate-200 rounded-2xl overflow-hidden mb-6 bg-white shadow-sm hover:shadow-md transition-shadow">
+                        <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 flex flex-col md:flex-row md:justify-between md:items-center gap-3">
+                            <h3 class="font-bold text-slate-800 flex items-center gap-2.5 text-lg">
+                                <div class="w-4 h-4 ${colorObj.bg} rounded-full shadow-inner border border-white"></div> 
+                                วันที่ ${dayIndex + 1} <span class="text-slate-500 font-medium text-sm bg-white px-2 py-0.5 rounded-md border border-slate-200 shadow-sm">${dayRoute.length} หลัง</span>
+                            </h3>
+                            <button onclick="startDayNavigation(${dayIndex})" class="bg-slate-800 hover:bg-slate-900 text-white text-sm font-bold px-4 py-2 rounded-xl flex items-center justify-center gap-1.5 transition shadow-sm w-full md:w-auto">
+                                <i class="ph ph-navigation-arrow text-base"></i> เริ่มนำทางทั้งวัน (Multi-stop)
+                            </button>
+                        </div>
+                        <div class="divide-y divide-slate-100">
+                `;
+
+                dayRoute.forEach((s, index) => {
+                    html += `
+                        <div class="p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-5 hover:bg-slate-50 transition duration-200">
+                            <div class="flex items-start gap-4 flex-1">
+                                <div class="w-10 h-10 rounded-full ${colorObj.bg} text-white flex items-center justify-center font-bold text-lg flex-shrink-0 mt-0.5 shadow-md border-2 border-white">${index + 1}</div>
+                                <div>
+                                    <p class="font-bold text-slate-800 text-lg leading-tight mb-1">${s.fName} ${s.lName}</p>
+                                    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-600 mb-1.5">
+                                        <span class="bg-slate-100 px-2 py-0.5 rounded border border-slate-200 font-medium text-blue-600">เลขที่ ${s.stdNo}</span>
+                                        <span><i class="ph ph-phone text-slate-400"></i> ${s.phone}</span>
+                                    </div>
+                                    <p class="text-sm text-slate-500 flex items-start gap-1"><i class="ph ph-map-pin text-rose-400 mt-0.5"></i> ${s.address.full}</p>
+                                    <p class="text-xs font-medium text-amber-600 mt-2 flex items-center gap-1 bg-amber-50 w-max px-2 py-1 rounded-md border border-amber-100">
+                                        <i class="ph ph-arrows-left-right"></i> ห่างจาก${index === 0 ? 'โรงเรียน' : 'บ้านก่อนหน้า'} ~${s.distanceFromPrev.toFixed(1)} กม.
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="flex flex-col sm:flex-row items-stretch gap-2 lg:w-auto w-full">
+                                <a href="https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}" target="_blank" class="flex-1 lg:flex-none text-center bg-white hover:bg-slate-50 text-slate-700 font-bold px-5 py-2.5 rounded-xl text-sm transition border border-slate-300 shadow-sm flex items-center justify-center gap-1.5">
+                                    <i class="ph ph-map-trifold text-lg text-blue-500"></i> แผนที่
+                                </a>
+                                <button onclick="toggleVisit('${s.id}')" class="flex-1 lg:flex-none bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition shadow-md shadow-emerald-500/20 flex items-center justify-center gap-1.5 border border-emerald-400">
+                                    <i class="ph ph-check-circle text-lg"></i> เยี่ยมแล้ว
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `</div></div>`;
+                container.innerHTML += html;
+            });
+
+            // จัดการรายชื่อที่ไม่สามารถนำทางได้
+            const unmappedContainer = document.getElementById('unmappedContainer');
+            const unmappedList = document.getElementById('unmappedList');
+            if(unmappedStudents.length > 0) {
+                unmappedContainer.classList.remove('hidden');
+                unmappedList.innerHTML = '';
+                unmappedStudents.forEach(s => {
+                    unmappedList.innerHTML += `
+                        <div class="bg-white border border-rose-100 p-4 rounded-xl flex justify-between items-center shadow-sm">
+                            <div>
+                                <p class="font-bold text-sm text-slate-800">${s.fName} ${s.lName}</p>
+                                <p class="text-xs text-slate-500 mt-0.5">เลขที่ ${s.stdNo}</p>
+                            </div>
+                            <button onclick="toggleVisit('${s.id}')" class="${s.isVisited ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border-slate-200'} border text-xs px-3 py-2 rounded-lg font-bold transition flex items-center gap-1">
+                                ${s.isVisited ? '<i class="ph ph-check font-bold"></i> เยี่ยมแล้ว' : 'ติ๊กเยี่ยมแล้ว'}
+                            </button>
+                        </div>
+                    `;
+                });
+            } else {
+                unmappedContainer.classList.add('hidden');
+            }
+        }
+
+        function startDayNavigation(dayIndex) {
+            const coordsInput = document.getElementById('startCoords').value;
+            const route = currentPlan[dayIndex];
+            if(!route || route.length === 0) return;
+
+            let url = `https://www.google.com/maps/dir/?api=1&origin=${coordsInput}`;
+            
+            if(route.length === 1) {
+                url += `&destination=${route[0].lat},${route[0].lng}`;
+            } else {
+                const dest = route[route.length - 1];
+                url += `&destination=${dest.lat},${dest.lng}`;
+                if(route.length > 1) {
+                    const waypoints = route.slice(0, -1).map(s => `${s.lat},${s.lng}`).join('|');
+                    url += `&waypoints=${waypoints}`;
+                }
+            }
+            window.open(url, '_blank');
+        }
+
+        function toggleVisit(studentId) {
+            const currentStatus = visitedStatus[studentId] === true;
+            visitedStatus[studentId] = !currentStatus;
+            localStorage.setItem('visitedStudentsM52', JSON.stringify(visitedStatus));
+            
+            allStudents.forEach(s => { if(s.id === studentId) s.isVisited = visitedStatus[studentId]; });
+            unmappedStudents.forEach(s => { if(s.id === studentId) s.isVisited = visitedStatus[studentId]; });
+
+            updateStats();
+            generatePlan();
+        }
+
+        function useSchoolCoords() {
+            document.getElementById('startCoords').value = "13.1126, 99.9392";
+            generatePlan();
+        }
+
+        function useCurrentCoords() {
+            if (navigator.geolocation) {
+                const btn = document.querySelector('button[onclick="useCurrentCoords()"]');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> รอพิกัด...';
+                btn.disabled = true;
+                
+                navigator.geolocation.getCurrentPosition(
+                    pos => {
+                        document.getElementById('startCoords').value = `${pos.coords.latitude}, ${pos.coords.longitude}`;
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                        generatePlan();
+                    },
+                    err => {
+                        showModal("ผิดพลาด", "ไม่สามารถดึงตำแหน่งปัจจุบันได้ กรุณาตรวจสอบว่าได้เปิด GPS และอนุญาตสิทธิ์ให้กับเบราว์เซอร์แล้ว", "error");
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                    },
+                    { enableHighAccuracy: true, timeout: 5000 }
+                );
+            } else {
+                showModal("ไม่รองรับ", "เบราว์เซอร์ของคุณไม่รองรับระบบระบุตำแหน่งพิกัด GPS", "error");
+            }
+        }
+
+        window.onload = () => {
+            initMap();
+            fetchDirectFromSheet();
+        };
+    </script>
+</body>
+</html>
